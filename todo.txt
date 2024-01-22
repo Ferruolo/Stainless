@@ -1,0 +1,16 @@
+
+
+2. Implement Backprop and SGD/ADAM update rules
+
+2. Implement MultiCore And Order Optimization
+
+# Distributed
+3. Add NVIDIA support
+
+4. (IF TIME) Create Stainless client, and Stainless Host
+
+5. Implement Basic Neural Net, Linear/Quadratic Programing Solver, Newton's Method Solver
+
+6. Add Breakpoints (Or the Code will assign one for you)
+
+
