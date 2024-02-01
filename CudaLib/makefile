@@ -1,45 +1,50 @@
-CC = nvcc
-CFLAGS = -std=c++17 -arch=sm_75
-LDFLAGS = --shared
-XCOMPILER_FLAGS = -Xcompiler="-fPIC"
+# Compiler
+NVCC = nvcc
 
-SRC = library.cu
-PROFILE_SRC = Profile.cu
-LIB_TARGET = libCudaLib.so
-DEBUG_TARGET = cudaProfiler_debug
-MEMCHECK_TARGET = cudaProfiler_memcheck
-PROFILE_TARGET = cudaProfiler_profile
+# Flags
+NVCCFLAGS = -std=c++11
 
-.PHONY: all debug release memcheck profile clean
+# Directories
+SRC_DIR = .
+BUILD_DIR = build
+LIB_DIR = lib
+BIN_DIR = bin
 
-all: release
+# Files
+LIB_SRCS = $(wildcard $(SRC_DIR)/*.cu)
+LIB_HDRS = $(wildcard $(SRC_DIR)/*.cuh) $(wildcard $(SRC_DIR)/*.h)
+LIB_OBJS = $(patsubst $(SRC_DIR)/%.cu,$(BUILD_DIR)/%.o,$(LIB_SRCS))
+LIB_NAME = $(LIB_DIR)/liblibrary.so
 
-debug: CFLAGS += -g -G
-debug: $(DEBUG_TARGET)
+PROFILE_SRC = profile.cu
+PROFILE_OBJ = $(BUILD_DIR)/profile.o
+PROFILE_BIN = $(BIN_DIR)/profile
 
-release: CFLAGS += -O3
-release: $(LIB_TARGET)
+# Libraries
+LIBS = -lcublas
 
-memcheck: CFLAGS += -g -G
-memcheck: LDFLAGS += -lineinfo
-memcheck: $(MEMCHECK_TARGET)
+# Architecture
+ARCH = sm_75
 
-profile: CFLAGS += -g -G
-profile: LDFLAGS += -lineinfo
-profile: SRC = $(PROFILE_SRC)
-profile: $(PROFILE_TARGET)
+# Targets
+.PHONY: all clean release memcheck debug
 
-$(LIB_TARGET): $(SRC)
-	$(CC) $(CFLAGS) $(LDFLAGS) $(XCOMPILER_FLAGS) -o $@ $<
+all: memcheck debug
 
-$(DEBUG_TARGET): $(PROFILE_SRC)
-	$(CC) $(CFLAGS) $(LDFLAGS) $(XCOMPILER_FLAGS) -o $@ $<
+release: NVCCFLAGS += -O3 -arch $(ARCH) -fPIC
+release: $(LIB_NAME)
 
-$(MEMCHECK_TARGET): $(PROFILE_SRC)
-	$(CC) $(CFLAGS) $(LDFLAGS) $(XCOMPILER_FLAGS) -o $@ $<
+memcheck debug: NVCCFLAGS += -g -G -arch $(ARCH)
+memcheck debug: $(PROFILE_BIN)
 
-$(PROFILE_TARGET): $(PROFILE_SRC)
-	$(CC) $(CFLAGS) $(LDFLAGS) $(XCOMPILER_FLAGS) -o $@ $<
+$(LIB_NAME): $(LIB_OBJS)
+	$(NVCC) -shared -o $@ $^
+
+$(BUILD_DIR)/%.o: $(SRC_DIR)/%.cu $(LIB_HDRS)
+	$(NVCC) $(NVCCFLAGS) -o $@ -c $<
+
+$(PROFILE_BIN): $(PROFILE_OBJ) $(LIB_OBJS)
+	$(NVCC) -o $@ $^ $(LIBS)
 
 clean:
-	rm -f $(LIB_TARGET) $(DEBUG_TARGET) $(MEMCHECK_TARGET) $(PROFILE_TARGET)
+	rm -rf $(BUILD_DIR)/* $(LIB_NAME) $(PROFILE_BIN)
