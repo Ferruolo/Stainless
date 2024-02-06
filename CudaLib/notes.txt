@@ -2,3 +2,4 @@ Leak Check: compute-sanitizer --tool memcheck --leak-check full ./bin/profile
 
 
 
+Naieve run time: 2001787

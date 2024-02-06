@@ -22,9 +22,9 @@
     void printMatrix(const struct Matrix *m);
 
     bool checkMatrixEquality(Matrix *m1, Matrix *m2);
-// Create Matrix Functions
-    struct Matrix * MatrixFactory(int *shape, int num_dum, Location loc);
 
+    // Create Matrix Functions
+    struct Matrix * MatrixFactory(int *shape, int num_dum, Location loc);
 
     struct Matrix * CreateUniformRandomMatrix(int * shape, int num_dim, Location loc,
             int min, int max);
@@ -32,6 +32,8 @@
     struct Matrix *CreateConstMatrix(int num_dim, int *shape, int c, Location loc);
 
     struct Matrix *CreateZeroMatrix(int num_dim, int *shape, Location loc);
+
+    struct Matrix * MatMul(struct Matrix *a, const struct Matrix *b);
     //Helper Functions
 
 
@@ -74,7 +76,7 @@
 //
 //    struct Matrix * MatrixTranspose(struct Matrix *m);
 //
-//    struct Matrix * MatMul(struct Matrix *a, const struct Matrix *b);
+
 //
 //    void MatrixTransposeInplace(struct Matrix *m);
 //

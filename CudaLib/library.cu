@@ -58,13 +58,13 @@ struct Matrix * MatrixFactory(int *shape, int num_dum, Location loc){
 }
 
 
-Matrix * CreateUniformRandomMatrix(int * shape, int num_dim, Location loc, int min_val, int max) {
+Matrix * CreateUniformRandomMatrix(int * shape, int num_dim, Location loc, int min_val, int max_val) {
     Matrix * m = MatrixFactory(shape, num_dim, loc);
     dim3 gridDim(CEIL_DIV(m->size, BLOCKSIZE * BLOCKSIZE));
     int blockThreads = min(BLOCKSIZE*BLOCKSIZE, m->size);
     dim3 blockDim(blockThreads);
 
-    cuRandArrInit<<<gridDim, blockDim>>>(m->elements, min_val, max);
+    cuRandArrInit<<<gridDim, blockDim>>>(m->elements, min_val, max_val, m->size);
     return m;
 }
 
@@ -106,7 +106,9 @@ bool checkMatrixEquality(Matrix *m1, Matrix *m2) {
     dim3 gridDim(CEIL_DIV(m1->size, BLOCKSIZE * BLOCKSIZE));
     int blockThreads = min(BLOCKSIZE*BLOCKSIZE, m1->size);
     dim3 blockDim(blockThreads);
-    checkEqualityKernel<<<gridDim, blockDim>>>(m1->elements, m2->elements, equalityChecker);
+    checkEqualityKernel<<<gridDim, blockDim>>>(m1->elements,
+                                               m2->elements,
+                                               equalityChecker);
     cudaDeviceSynchronize();
     for (int i = 0; i < m1->size; ++i) {
         if (!equalityChecker[i]) {
@@ -118,4 +120,25 @@ bool checkMatrixEquality(Matrix *m1, Matrix *m2) {
 
     cudaFree(equalityChecker);
     return true;
+}
+
+struct Matrix * MatMul(struct Matrix *a, const struct Matrix *b) {
+    if (a->shape[1] != b->shape[0]) {
+        printf("Matrix size mismatched");
+        exit(1);
+    }
+    int newShape[2] = {a->shape[0], b->shape[1]};
+
+    Matrix *C = CreateZeroMatrix(b->num_dim, newShape, GPU);
+
+    dim3 gridDim(CEIL_DIV(newShape[0], BLOCKSIZE), CEIL_DIV(newShape[1], BLOCKSIZE), 1);
+
+    dim3 blockDim(BLOCKSIZE, BLOCKSIZE);
+
+    sgemm_kernel<<<gridDim, blockDim>>>(a->shape[0],
+            b->shape[1],
+            b->shape[0],
+            1.0, 0.0, a->elements, b->elements, C->elements);
+    cudaDeviceSynchronize();
+    return C;
 }
