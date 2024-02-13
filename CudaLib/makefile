@@ -34,7 +34,7 @@ all: memcheck debug
 release: NVCCFLAGS += -O3 -arch $(ARCH) -fPIC
 release: $(LIB_NAME)
 
-memcheck debug: NVCCFLAGS += -g -G -arch $(ARCH)
+memcheck debug: NVCCFLAGS += -g -lineinfo -arch $(ARCH)
 memcheck debug: $(PROFILE_BIN)
 
 $(LIB_NAME): $(LIB_OBJS)

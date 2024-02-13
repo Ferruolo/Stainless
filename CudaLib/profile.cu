@@ -1,8 +1,7 @@
-#include "library.cuh"
 #include <cublas_v2.h>
 #include <stdio.h>
 #include <chrono>
-
+#include "library.cuh"
 #define CEIL_DIV(M, N) (((M) + (N)-1) / (N))
 #define BLOCKSIZE 32
 
@@ -25,9 +24,9 @@ __global__ void colToRowMajorKernel(float *colMajor, float *rowMajor, int rows, 
 }
 
 int main() {
-    int shapeA[] = {3000, 5000}; // Initialize shapes as arrays
-    int shapeB[] = {5000, 6000};
-    int shapeC[] = {3000, 6000};
+    int shapeA[] = {4000, 2000}; // Initialize shapes as arrays
+    int shapeB[] = {2000, 3000};
+    int shapeC[] = {4000, 3000};
     cudaFree(0);
 
     // TODO: Overhead on these is slow as fuck! Maybe something to do with allocating mem, but still
@@ -42,13 +41,27 @@ int main() {
     cudaMallocManaged(&beta, sizeof(float));
     *beta = 0.0;
 
-    //////////////////////////////////////////////////////////////////////////////////
+
+    //////////////////////////////////////////////////////////////////////////////
+
+    int newShape[2] = {matA->shape[0], matB->shape[1]};
+    Matrix *matMulRes = CreateZeroMatrix(matB->num_dim, newShape, GPU);
+    dim3 gridDim(CEIL_DIV(newShape[1], BLOCKSIZE), CEIL_DIV(newShape[0], BLOCKSIZE));
+
+    dim3 blockDim(BLOCKSIZE, BLOCKSIZE);
     auto start = std::chrono::high_resolution_clock::now();
-    Matrix * matMulRes = MatMul(matA, matB);
+    sgemm_kernel<<<gridDim, blockDim>>>(matA->shape[0],
+                                        matB->shape[1],
+                                        matB->shape[0],
+                                        1.0, 0.0,
+                                        matA->elements,
+                                        matB->elements,
+                                        matMulRes->elements);
     cudaDeviceSynchronize();
     auto finish = std::chrono::high_resolution_clock::now();
     auto microseconds = std::chrono::duration_cast<std::chrono::microseconds>(finish-start);
     //////////////////////////////////////////////////////////////////////////////////
+
     printf("My function run time: %ld\n", microseconds.count());
 
 
@@ -60,8 +73,8 @@ int main() {
     float * aColMajor;
     cudaMalloc(&aColMajor, matA->size * sizeof(float ));
     dim3 blockDimA(BLOCKSIZE, BLOCKSIZE);
-    dim3 gridDimA(CEIL_DIV(shapeA[0], BLOCKSIZE) ,
-                       CEIL_DIV(shapeA[1], BLOCKSIZE));
+    dim3 gridDimA(CEIL_DIV(newShape[0], BLOCKSIZE) ,
+                       CEIL_DIV(newShape[1], BLOCKSIZE));
 
     // Launch kernel
     rowToColMajorKernel<<<gridDimA, blockDimA>>>(matA->elements,
@@ -85,7 +98,7 @@ int main() {
 
     float * cColMajor;
     cudaMalloc(&cColMajor, matC->size * sizeof(float));
-
+    cudaDeviceSynchronize();
     auto startCublas = std::chrono::high_resolution_clock::now();
     cublasSgemm_v2(handle, CUBLAS_OP_N, CUBLAS_OP_N,
                 shapeA[0],
@@ -102,6 +115,7 @@ int main() {
     );
 
     auto finishCublas = std::chrono::high_resolution_clock::now();
+    cudaDeviceSynchronize();
     auto microsecondsCublas =
             std::chrono::duration_cast<std::chrono::microseconds>
                     (finishCublas-startCublas);
@@ -123,22 +137,25 @@ int main() {
     }
 
 
-
+//    printMatrix(matA);
+//    printMatrix(matB);
+//    printMatrix(matC);
+//    printMatrix(matMulRes);
 
     cublasDestroy(handle);
     cudaFree(matA->elements);
     cudaFree(matB->elements);
     cudaFree(matC->elements);
     cudaFree(matMulRes->elements);
-    cudaFree(matA->shape);
-    cudaFree(matB->shape);
-    cudaFree(matC->shape);
-    cudaFree(matMulRes->shape);
     free(matA);
     free(matB);
     free(matC);
     free(matMulRes);
     cudaFree(alpha);
     cudaFree(beta);
+
+    cudaFree(aColMajor);
+    cudaFree(bColMajor);
+    cudaFree(cColMajor);
     return 0;
 }

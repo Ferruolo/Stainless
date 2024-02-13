@@ -1,5 +1,5 @@
+#include "kernels.cuh"
 #pragma once
-
 //extern "C" {
     // Definitions
     enum Location {

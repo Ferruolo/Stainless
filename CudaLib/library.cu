@@ -1,6 +1,5 @@
 #include "library.cuh"
 #include <iostream>
-#include "kernels.cuh"
 
 #define CEIL_DIV(M, N) (((M) + (N)-1) / (N))
 #define BLOCKSIZE 32
@@ -37,9 +36,10 @@ struct Matrix * MatrixFactory(int *shape, int num_dum, Location loc){
     }
     Matrix * m = (Matrix *) malloc(sizeof(Matrix));
 
-    int *newShape;
-    cudaMallocManaged(&newShape, sizeof(int) * num_dum);
-    cudaMemcpy(newShape, shape, sizeof(int) * num_dum, cudaMemcpyHostToDevice);
+    int *newShape = (int *) malloc(num_dum * sizeof(int));
+    for (int i = 0; i < num_dum; ++i){
+        newShape[i] = shape[i];
+    }
 
     //Only supports 2-dimensional at the moment
     int size = newShape[0] * newShape[1];
@@ -71,9 +71,8 @@ Matrix * CreateUniformRandomMatrix(int * shape, int num_dim, Location loc, int m
 struct Matrix *CreateConstMatrix(int num_dim, int *shape, int c, Location loc) {
     Matrix * m = MatrixFactory(shape, num_dim, loc);
     dim3 gridDim(CEIL_DIV(m->size, BLOCKSIZE * BLOCKSIZE));
-    int blockThreads = min(BLOCKSIZE*BLOCKSIZE, m->size);
-    dim3 blockDim(blockThreads);
-    cuConstArrInit<<<gridDim, blockDim>>>(m->elements, c);
+    dim3 blockDim(BLOCKSIZE * BLOCKSIZE);
+    cuConstArrInit<<<gridDim, blockDim>>>(m->elements, m->size, c);
     return m;
 }
 
@@ -108,7 +107,9 @@ bool checkMatrixEquality(Matrix *m1, Matrix *m2) {
     dim3 blockDim(blockThreads);
     checkEqualityKernel<<<gridDim, blockDim>>>(m1->elements,
                                                m2->elements,
-                                               equalityChecker);
+                                               equalityChecker,
+                                               m1->size);
+
     cudaDeviceSynchronize();
     for (int i = 0; i < m1->size; ++i) {
         if (!equalityChecker[i]) {
