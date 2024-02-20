@@ -24,9 +24,9 @@ __global__ void colToRowMajorKernel(float *colMajor, float *rowMajor, int rows, 
 }
 
 int main() {
-    int shapeA[] = {4000, 2000}; // Initialize shapes as arrays
-    int shapeB[] = {2000, 3000};
-    int shapeC[] = {4000, 3000};
+    int shapeA[] = {400, 200}; // Initialize shapes as arrays
+    int shapeB[] = {200, 300};
+    int shapeC[] = {400, 300};
     cudaFree(0);
 
     // TODO: Overhead on these is slow as fuck! Maybe something to do with allocating mem, but still
@@ -137,10 +137,6 @@ int main() {
     }
 
 
-//    printMatrix(matA);
-//    printMatrix(matB);
-//    printMatrix(matC);
-//    printMatrix(matMulRes);
 
     cublasDestroy(handle);
     cudaFree(matA->elements);

@@ -36,35 +36,46 @@ __global__ void checkEqualityKernel(float *A, float*B, bool *target, int size) {
 
 // Functional Kernels
 __global__ void sgemm_kernel(int M, int N, int K, float alpha, float beta,
-                             const float *A, const float *B, float *C) {
+                             float * A, float *B, float *C) {
     //Calculate row and column
     // Row must belong to same block (as much as possible) of other elements in same
     // row
-    const uint row = (BLOCKSIZE * blockIdx.y) + threadIdx.y;
-    const uint col = (BLOCKSIZE * blockIdx.x) + threadIdx.x;
+    const uint row = (blockIdx.y << 5) + threadIdx.y;
+    const uint col = (blockIdx.x << 5) + threadIdx.x;
 
     __shared__ float aCache[BLOCKSIZE][BLOCKSIZE];
     __shared__ float bCache[BLOCKSIZE][BLOCKSIZE];
 
-    int temp = 0;
-    for (int i = 0; i < CEIL_DIV(K, BLOCKSIZE); ++i) {
-        __syncthreads();
-        //issue is here
-        int rowIdx = i * BLOCKSIZE + threadIdx.x;
-        int colIdx = i * BLOCKSIZE + threadIdx.y;
+    float * aLocal = A + row * K;
+    float * bLocal = B + col;
 
-        if (rowIdx < K) {
-            aCache[threadIdx.y][threadIdx.x] = A[row * K + rowIdx];
-        }
-
-        if (colIdx < K) {
-            bCache[threadIdx.x][threadIdx.y] = B[colIdx * N + col];
-        }
+    int numIter = CEIL_DIV(K, BLOCKSIZE);
+    float temp = 0;
+    int rowIdx = threadIdx.x;
+    int colIdx = threadIdx.y * N;
+    int bIncrement = N << 5;
+    for (int i = 0; i < numIter; ++i) {
         __syncthreads();
-        int cap = min(BLOCKSIZE, K - i * BLOCKSIZE);
-        for (int j = 0; j < cap; ++j) {
-            temp += aCache[threadIdx.y][j] * bCache[threadIdx.x][j];
+
+
+        aCache[threadIdx.y][threadIdx.x] = aLocal[rowIdx];
+        if (colIdx + (i << 5) < K)
+            bCache[threadIdx.x][threadIdx.y] = bLocal[colIdx];
+        __syncthreads();
+
+        if (i << 5 > K) {
+            int stop = K - ((i-1) << 5);
+            for (int j = 0; j < stop; ++j) {
+                temp += aCache[threadIdx.y][j] * bCache[threadIdx.x][j];
+            }
+        } else {
+            #pragma unroll
+            for (int j = 0; j < BLOCKSIZE; ++j) {
+                temp += aCache[threadIdx.y][j] * bCache[threadIdx.x][j];
+            }
         }
+        rowIdx += BLOCKSIZE;
+        colIdx += bIncrement;
     }
     __syncthreads();
     if (row < M && col < N) {

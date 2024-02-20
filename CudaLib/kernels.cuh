@@ -15,4 +15,4 @@ __global__ void checkEqualityKernel(float *A, float*B, bool *target, int size);
 
 // Functional Kernels
 __global__ void sgemm_kernel(int M, int N, int K, float alpha, float beta,
-                        const float *A, const float *B, float *C);
+                             float *A, float *B, float *C);
