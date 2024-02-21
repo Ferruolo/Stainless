@@ -25,7 +25,7 @@ __global__ void colToRowMajorKernel(float *colMajor, float *rowMajor, int rows, 
 }
 
 int main() {
-    int multiplier = 8;
+    int multiplier = 1;
     // Initialize shapes as arrays
     int shapeA[] = {multiplier * BLOCKSIZE, multiplier * BLOCKSIZE};
     int shapeB[] = {multiplier * BLOCKSIZE, multiplier * BLOCKSIZE};
