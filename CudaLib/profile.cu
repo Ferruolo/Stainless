@@ -4,6 +4,7 @@
 #include "library.cuh"
 #define CEIL_DIV(M, N) (((M) + (N)-1) / (N))
 #define BLOCKSIZE 32
+#define NUM_LOAD BLOCKSIZE * 2
 
 __global__ void rowToColMajorKernel(float *rowMajor, float *colMajor, int rows, int cols) {
     int i = blockIdx.x * blockDim.x + threadIdx.x;
@@ -24,9 +25,11 @@ __global__ void colToRowMajorKernel(float *colMajor, float *rowMajor, int rows, 
 }
 
 int main() {
-    int shapeA[] = {400, 200}; // Initialize shapes as arrays
-    int shapeB[] = {200, 300};
-    int shapeC[] = {400, 300};
+    int multiplier = 8;
+    // Initialize shapes as arrays
+    int shapeA[] = {multiplier * BLOCKSIZE, multiplier * BLOCKSIZE};
+    int shapeB[] = {multiplier * BLOCKSIZE, multiplier * BLOCKSIZE};
+    int shapeC[] = {multiplier * BLOCKSIZE, multiplier * BLOCKSIZE};
     cudaFree(0);
 
     // TODO: Overhead on these is slow as fuck! Maybe something to do with allocating mem, but still
@@ -48,7 +51,7 @@ int main() {
     Matrix *matMulRes = CreateZeroMatrix(matB->num_dim, newShape, GPU);
     dim3 gridDim(CEIL_DIV(newShape[1], BLOCKSIZE), CEIL_DIV(newShape[0], BLOCKSIZE));
 
-    dim3 blockDim(BLOCKSIZE, BLOCKSIZE);
+    dim3 blockDim(BLOCKSIZE/2, BLOCKSIZE/2);
     auto start = std::chrono::high_resolution_clock::now();
     sgemm_kernel<<<gridDim, blockDim>>>(matA->shape[0],
                                         matB->shape[1],
@@ -60,7 +63,7 @@ int main() {
     cudaDeviceSynchronize();
     auto finish = std::chrono::high_resolution_clock::now();
     auto microseconds = std::chrono::duration_cast<std::chrono::microseconds>(finish-start);
-    //////////////////////////////////////////////////////////////////////////////////
+    ////////////////////////////////////////////////////////////////////////////////
 
     printf("My function run time: %ld\n", microseconds.count());
 
@@ -136,7 +139,14 @@ int main() {
         printf("Matrices are not equal\n");
     }
 
-
+//    printf("---\n");
+//    printMatrix(matA);
+//    printf("---\n");
+//    printMatrix(matB);
+//    printf("---\n");
+//    printMatrix(matC);
+//    printf("---\n");
+//    printMatrix(matMulRes);
 
     cublasDestroy(handle);
     cudaFree(matA->elements);
