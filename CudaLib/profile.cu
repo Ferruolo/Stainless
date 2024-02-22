@@ -25,7 +25,8 @@ __global__ void colToRowMajorKernel(float *colMajor, float *rowMajor, int rows, 
 }
 
 int main() {
-    int multiplier = 1;
+    int multiplier = 16;
+    printf("%d\n", multiplier * BLOCKSIZE);
     // Initialize shapes as arrays
     int shapeA[] = {multiplier * BLOCKSIZE, multiplier * BLOCKSIZE};
     int shapeB[] = {multiplier * BLOCKSIZE, multiplier * BLOCKSIZE};
@@ -51,7 +52,7 @@ int main() {
     Matrix *matMulRes = CreateZeroMatrix(matB->num_dim, newShape, GPU);
     dim3 gridDim(CEIL_DIV(newShape[1], BLOCKSIZE), CEIL_DIV(newShape[0], BLOCKSIZE));
 
-    dim3 blockDim(BLOCKSIZE/2, BLOCKSIZE/2);
+    dim3 blockDim(BLOCKSIZE, BLOCKSIZE / 4);
     auto start = std::chrono::high_resolution_clock::now();
     sgemm_kernel<<<gridDim, blockDim>>>(matA->shape[0],
                                         matB->shape[1],
@@ -139,14 +140,15 @@ int main() {
         printf("Matrices are not equal\n");
     }
 
-//    printf("---\n");
-//    printMatrix(matA);
-//    printf("---\n");
-//    printMatrix(matB);
-//    printf("---\n");
-//    printMatrix(matC);
-//    printf("---\n");
-//    printMatrix(matMulRes);
+
+    // printf("---\n");
+    // printMatrix(matA);
+    // printf("---\n");
+    // printMatrix(matB);
+    // printf("---\n");
+    // printMatrix(matC);
+    // printf("---\n");
+    // printMatrix(matMulRes);
 
     cublasDestroy(handle);
     cudaFree(matA->elements);
