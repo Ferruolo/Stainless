@@ -1,8 +1,7 @@
 #include <curand_kernel.h>
 #include <stdio.h>
 #define BLOCKSIZE 32
-#define NUM_LOAD BLOCKSIZE * 2
-#define NUM_REGISTERS 82
+#define NUM_REGISTERS 1222
 #define CELLS_PER_KERNEL 4
 #define CEIL_DIV(M, N) (((M) + (N)-1) / (N))
 
@@ -30,7 +29,7 @@ __global__ void cuConstArrInit(float *randArray, int size, int c) {
 __global__ void checkEqualityKernel(float *A, float*B, bool *target, int size) {
     int tid = blockIdx.x * blockDim.x + threadIdx.x;
     if (tid >= size) return;
-    bool res = abs(A[tid] - B[tid]) < 1e-2;
+    bool res = abs(A[tid] - B[tid]) < 1e-6;
     target[tid] = res;
 }
 
@@ -67,16 +66,16 @@ __global__ void sgemm_kernel(int M, int N, int K, float alpha, float beta,
         //Load up B cache
         #pragma unroll
         for (int j = 0; j < CELLS_PER_KERNEL; ++j) {
-            bCache[threadOffsetCol][cacheColIdx + j] = bLocal[(cacheColIdx + j) * N];
+            bCache[cacheColIdx + j][threadOffsetCol] = bLocal[(cacheColIdx + j) * N];
         }
 
         __syncthreads();
         #pragma unroll
-        for (int j = 0; j < BLOCKSIZE; ++j) {
-            //Add up K for this matrix
+        for (int c = 0; c < CELLS_PER_KERNEL; ++c) {
             #pragma unroll
-            for (int c = 0; c < CELLS_PER_KERNEL; ++c) {
-                temp[c] += aCache[threadOffsetRow + c][j] * bCache[threadOffsetCol][j];
+            for (int j = 0; j < BLOCKSIZE; ++j) {
+            //Add up K for this matrix
+                temp[c] += aCache[threadOffsetRow + c][j] * bCache[j][threadOffsetCol];
             }
         }
 
@@ -89,12 +88,9 @@ __global__ void sgemm_kernel(int M, int N, int K, float alpha, float beta,
     }
     __syncthreads();
     // Set values of C using temp
+
     #pragma unroll
     for (int i = 0; i < CELLS_PER_KERNEL; ++i) {
         C[(row + i) * N + col] = alpha * temp[i] + beta * C[(row + i) * N + col];
     }
 }
-
-// TODO: COALESCE MEMORY!!!!!!!!!!!
-//  INCREASE OCCUPANCY? (Memory Limit?)
-//  Vectorize?. Identify better ways to increase performance
