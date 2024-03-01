@@ -26,7 +26,7 @@ void hello() {
 }
 
 
-struct Matrix * MatrixFactory(int *shape, int num_dum, Location loc){
+struct Matrix * MatrixFactory(int *shape, int num_dum, location loc){
     if (loc != GPU){
         std::cerr << "Only supports GPU atm" << std::endl;
         exit(1);
@@ -58,7 +58,7 @@ struct Matrix * MatrixFactory(int *shape, int num_dum, Location loc){
 }
 
 
-Matrix * CreateUniformRandomMatrix(int * shape, int num_dim, Location loc, int min_val, int max_val) {
+Matrix * CreateUniformRandomMatrix(int * shape, int num_dim, location loc, int min_val, int max_val) {
     Matrix * m = MatrixFactory(shape, num_dim, loc);
     dim3 gridDim(CEIL_DIV(m->size, BLOCKSIZE * BLOCKSIZE));
     int blockThreads = min(BLOCKSIZE*BLOCKSIZE, m->size);
@@ -68,7 +68,7 @@ Matrix * CreateUniformRandomMatrix(int * shape, int num_dim, Location loc, int m
     return m;
 }
 
-struct Matrix *CreateConstMatrix(int num_dim, int *shape, int c, Location loc) {
+struct Matrix *CreateConstMatrix(int num_dim, int *shape, int c, location loc) {
     Matrix * m = MatrixFactory(shape, num_dim, loc);
     dim3 gridDim(CEIL_DIV(m->size, BLOCKSIZE * BLOCKSIZE));
     dim3 blockDim(BLOCKSIZE * BLOCKSIZE);
@@ -76,7 +76,7 @@ struct Matrix *CreateConstMatrix(int num_dim, int *shape, int c, Location loc) {
     return m;
 }
 
-struct Matrix *CreateZeroMatrix(int num_dim, int *shape, Location loc) {
+struct Matrix *CreateZeroMatrix(int num_dim, int *shape, location loc) {
     return CreateConstMatrix(num_dim, shape, 0, loc);
 }
 

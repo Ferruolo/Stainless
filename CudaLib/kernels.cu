@@ -93,4 +93,8 @@ __global__ void sgemm_kernel(int M, int N, int K, float alpha, float beta,
     for (int i = 0; i < CELLS_PER_KERNEL; ++i) {
         C[(row + i) * N + col] = alpha * temp[i] + beta * C[(row + i) * N + col];
     }
+// TODO:
+// Double Buffer
+// Optimize temp val calculation
+// Optimize read from global (possibly using async)
 }

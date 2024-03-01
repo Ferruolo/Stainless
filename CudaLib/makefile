@@ -31,7 +31,7 @@ ARCH = sm_75
 
 all: memcheck debug
 
-release: NVCCFLAGS += -O3 -arch $(ARCH) -fPIC
+release: NVCCFLAGS += -O3 -arch $(ARCH) -Xcompiler -fPIC
 release: $(LIB_NAME)
 
 memcheck debug: NVCCFLAGS += -g -lineinfo -arch $(ARCH)

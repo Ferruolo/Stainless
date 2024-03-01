@@ -1,8 +1,8 @@
-#include "kernels.cuh"
 #pragma once
-//extern "C" {
+#include "kernels.cuh"
+extern "C" {
     // Definitions
-    enum Location {
+    enum location {
         GPU,
         CPU
     };
@@ -13,25 +13,23 @@
         int size;
         int *shape;
         int num_dim;
-        Location loc;
+        location loc;
     };
 
     // Verification Test
-    __global__ void cudaHello();
-
     void printMatrix(const struct Matrix *m);
 
     bool checkMatrixEquality(Matrix *m1, Matrix *m2);
 
     // Create Matrix Functions
-    struct Matrix * MatrixFactory(int *shape, int num_dum, Location loc);
+    struct Matrix * MatrixFactory(int *shape, int num_dum, location loc);
 
-    struct Matrix * CreateUniformRandomMatrix(int * shape, int num_dim, Location loc,
+    struct Matrix * CreateUniformRandomMatrix(int * shape, int num_dim, location loc,
             int min, int max);
 
-    struct Matrix *CreateConstMatrix(int num_dim, int *shape, int c, Location loc);
+    struct Matrix *CreateConstMatrix(int num_dim, int *shape, int c, location loc);
 
-    struct Matrix *CreateZeroMatrix(int num_dim, int *shape, Location loc);
+    struct Matrix *CreateZeroMatrix(int num_dim, int *shape, location loc);
 
     struct Matrix * MatMul(struct Matrix *a, const struct Matrix *b);
     //Helper Functions
@@ -97,5 +95,5 @@
 //
 
 
-//}
+}
 

@@ -1,13 +1,21 @@
-use crate::bindings::{hello, MatrixAdd, printMatrix};
-use crate::matrices::create_ones_matrix_rust;
-mod bindings;
-mod matrices;
+
+mod classes;
+mod task_queue;
+mod stainless_core;
+mod array;
+
+use crate::stainless_core::Executor;
+
+
 fn main() {
-    let shape1 = vec![2, 2];
-    let shape2 = vec![2, 2];
-    let m1 = create_ones_matrix_rust(2, shape1);
-    let m2 = create_ones_matrix_rust(2, shape2);
-    let m3 = unsafe { MatrixAdd(m1, m2) };
-    unsafe {printMatrix(m3)};
+    let mut exec = Executor::init();
+    let shape = vec![2, 2];
+    let a = exec.build_matrix(&shape);
+    let b = exec.build_matrix(&shape);
+    let c = exec.build_matrix(&shape);
+    //
+    // let sum = exec.add(a, b);
+    // exec.print_graph();
+    println!("Success!");
 }
 
