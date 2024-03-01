@@ -1,8 +1,7 @@
-use crate::array::{DepTree, Object};
+use crate::array::{Object};
 use crate::classes::Operations::*;
 use crate::task_queue::TaskQueue;
 use std::sync::{Arc, Mutex};
-use libc::iovec;
 use crate::classes::Operations;
 
 // use crate::task_queue::TaskQueue;
@@ -30,7 +29,7 @@ impl Executor {
         let parse_children =
             |a: Option<&Arc<Mutex<Object>>>| {
             if let Some(c) = a {
-                return Some(Arc::clone(&c))
+                return Some(Arc::clone(c))
             } else {
                 return None;
             }
@@ -49,10 +48,10 @@ impl Executor {
                 )
             )
         );
-        self.queue.push_object(Arc::clone(&new_obj));
+        let opt_object = self.queue.push_object(new_obj);
 
         self.name_iter += 1;
-        return new_obj;
+        return opt_object;
     }
 
 
@@ -68,8 +67,10 @@ impl Executor {
         left: &Arc<Mutex<Object>>,
         right: &Arc<Mutex<Object>>,
     ) -> Arc<Mutex<Object>> {
+        let new_shape = left.lock().unwrap().get_shape().clone();
+
         return self.mat_initializer(
-            left.lock().unwrap().get_shape(),
+            &new_shape,
             true,
             Add,
             Some(left),
@@ -103,7 +104,9 @@ impl Executor {
 
 
 
-    pub fn print_graph() {
-        todo!();
+    pub fn print_graph(&self) {
+        self.queue.print_items();
     }
+
+
 }

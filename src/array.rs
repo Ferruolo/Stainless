@@ -1,4 +1,4 @@
-use std::ops::Deref;
+use std::ptr;
 use crate::classes::{ItemLoc, Operations};
 use std::rc::Rc;
 use std::sync::{Arc, Mutex};
@@ -50,7 +50,6 @@ impl Object {
     }
 
     pub fn get_left(&self) -> &Option<Arc<Mutex<Object>>> {
-
         return &self.left;
     }
     pub fn get_right(&self) -> &Option<Arc<Mutex<Object>>> {
@@ -64,6 +63,10 @@ impl Object {
             return None;
         }
     }
+
+    pub fn get_name(&self) -> u64 {
+        return self.name;
+    }
 }
 
 
@@ -71,26 +74,59 @@ pub struct DepTree{
     node: Arc<Mutex<Object>>,
     forge_op: Operations,
     children: Vec<Rc<DepTree>>,
+    height: usize
 }
 
 impl  DepTree {
     pub(crate) fn init(refers_to: Arc<Mutex<Object>>) -> Self {
         let mut children = Vec::new();
-        let unwrapped = refers_to.lock().unwrap();
-        
-        for c in [unwrapped.get_left(), unwrapped.get_right()] {
-            if let Some(child) = c {
-                if let Some(dep) = child.lock().unwrap().get_dep() {
-                    children.push(dep)
+        {
+            let unwrapped = &refers_to.lock().unwrap();
+            let unwrapped_children = [unwrapped.get_right(), unwrapped.get_left()];
+            for c in unwrapped_children {
+                if let Some(child) = c {
+                    if let Some(dep) = child.lock().unwrap().get_dep() {
+                        children.push(Rc::clone(&dep))
+                    }
                 }
             }
         }
 
+        let max_height = children.iter().map(|c| c.height + 1).max();
+
         Self {
             node: Arc::clone(&refers_to),
-            forge_op: unwrapped.get_op(),
+            forge_op: refers_to.lock().unwrap().get_op(),
             children,
+            height: max_height.unwrap_or(0)
         }
+    }
+
+    pub fn merge(&self, other: &Rc<DepTree>) -> Option<Arc<Mutex<Object>>> {
+        if other.children.len() == 0 
+            || other.children.len() != self.children.len() 
+            || other.forge_op != self.forge_op {
+            return None;
+        }
+
+        for (s, o) in self.children.iter().zip(other.children.iter()) {
+            let s_name = s.node.lock().unwrap().get_name();
+            let o_name = o.node.lock().unwrap().get_name();
+            if s_name != o_name {
+                return None
+            }
+        }
+        
+        return Some(Arc::clone(&self.node))
+    }
+
+
+    pub fn get_height(&self) -> usize {
+        return self.height;
+    }
+
+    pub fn get_name(&self) -> u64 {
+        return self.node.lock().unwrap().get_name();
     }
 }
 

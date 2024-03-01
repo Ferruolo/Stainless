@@ -1,5 +1,5 @@
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq, Eq)]
 pub(crate) enum Operations {
     Add,
     MatMul,
