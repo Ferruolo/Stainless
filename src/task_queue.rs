@@ -1,41 +1,27 @@
 extern crate queues;
 
-use crate::array::DepTree;
+use std::ops::DerefMut;
+use std::rc::Rc;
+use crate::array::{DepTree, Object};
+use std::sync::{Arc, Mutex};
 // use crate::array::{DepTree, Object};
 
-
-
-pub struct TaskQueue <'a>{
-    dependency_graph: Vec<Box<DepTree<'a, 'a, 'a>>>,
-
+pub struct TaskQueue {
+    dependency_graph: Vec<Rc<DepTree>>,
 }
 
-
-
-
-impl <'a> TaskQueue <'a> {
-    pub(crate) fn init() -> Self{
+impl TaskQueue {
+    pub(crate) fn init() -> Self {
         Self {
-            dependency_graph: Vec::new()
+            dependency_graph: Vec::new(),
         }
     }
-    
-    pub fn push_object(&mut self, item: Box<DepTree<'a, 'a, 'a>>) {
-        self.dependency_graph.push(item)
+
+    pub fn push_object(&mut self, item: Arc<Mutex<Object>>) {
+        let node = Arc::clone(&item);
+        let dep = Rc::new(DepTree::init(item));
+        node.lock().unwrap().set_dependency(&dep);
+        self.dependency_graph.push(dep)
     }
-
-
-
-    // fn merge_into_dependency_graph(&mut self, item: &Box<DepTree>) -> &Box<DepTree> {
-    //
-    //     for i in self.dependency_graph[0] {
-    //         if (item.is_equal(i)) {
-    //             i.merge(item);
-    //             return i;
-    //         }
-    //     }
-    //     item
-    // }
+    
 }
-
-

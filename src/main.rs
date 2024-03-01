@@ -14,7 +14,7 @@ fn main() {
     let b = exec.build_matrix(&shape);
     let c = exec.build_matrix(&shape);
     //
-    // let sum = exec.add(a, b);
+    let sum = exec.add(&a, &b);
     // exec.print_graph();
     println!("Success!");
 }
