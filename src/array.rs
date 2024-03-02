@@ -1,4 +1,3 @@
-use std::ptr;
 use crate::classes::{ItemLoc, Operations};
 use std::rc::Rc;
 use std::sync::{Arc, Mutex};
@@ -74,7 +73,9 @@ pub struct DepTree{
     node: Arc<Mutex<Object>>,
     forge_op: Operations,
     children: Vec<Rc<DepTree>>,
-    height: usize
+    height: usize,
+    shape: Vec<u8>,
+    num_uses: u8
 }
 
 impl  DepTree {
@@ -91,20 +92,24 @@ impl  DepTree {
                 }
             }
         }
+        
 
         let max_height = children.iter().map(|c| c.height + 1).max();
+        let shape = refers_to.lock().unwrap().shape.clone();
 
         Self {
             node: Arc::clone(&refers_to),
             forge_op: refers_to.lock().unwrap().get_op(),
             children,
-            height: max_height.unwrap_or(0)
+            height: max_height.unwrap_or(0),
+            shape: shape,
+            num_uses: 0,
         }
     }
 
     pub fn merge(&self, other: &Rc<DepTree>) -> Option<Arc<Mutex<Object>>> {
-        if other.children.len() == 0 
-            || other.children.len() != self.children.len() 
+        if other.children.len() == 0
+            || other.children.len() != self.children.len()
             || other.forge_op != self.forge_op {
             return None;
         }
@@ -116,10 +121,17 @@ impl  DepTree {
                 return None
             }
         }
-        
+
         return Some(Arc::clone(&self.node))
     }
 
+    pub fn get_num_children(&self) -> usize {
+         return self.children.len();
+    }
+
+    pub fn get_children(&self) -> Vec<Rc<DepTree>> {
+        return self.children.clone();
+    }
 
     pub fn get_height(&self) -> usize {
         return self.height;
@@ -127,6 +139,18 @@ impl  DepTree {
 
     pub fn get_name(&self) -> u64 {
         return self.node.lock().unwrap().get_name();
+    }
+
+    pub fn get_forge_op(&self) -> Operations {
+        return self.forge_op
+    }
+    
+    pub fn get_num_use(&self) -> u8{
+        return self.num_uses
+    }
+    
+    pub fn get_shape(&self) -> &Vec<u8>{
+        return &self.shape;
     }
 }
 

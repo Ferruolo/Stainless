@@ -36,7 +36,7 @@ impl Executor {
         };
 
 
-        let mut new_obj = Arc::new(
+        let new_obj = Arc::new(
             Mutex::new(
                 Object::init(
                     self.name_iter,
