@@ -1,11 +1,12 @@
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash)]
-pub(crate) enum Operations {
+pub(crate) enum Operation {
     Add,
     MatMul,
     Init
 }
 
+#[derive(Clone, Copy)]
 pub(crate) enum ItemLoc {
     GPU, CPU, DISK
 }

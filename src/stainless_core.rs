@@ -1,8 +1,8 @@
 use crate::array::{Object};
-use crate::classes::Operations::*;
+use crate::classes::Operation::*;
 use crate::task_queue::TaskQueue;
 use std::sync::{Arc, Mutex};
-use crate::classes::Operations;
+use crate::classes::Operation;
 
 // use crate::task_queue::TaskQueue;
 
@@ -22,7 +22,7 @@ impl Executor {
         &mut self,
         shape: &Vec<u8>,
         track_deps: bool,
-        forge_op: Operations,
+        forge_op: Operation,
         left: Option<&Arc<Mutex<Object>>>,
         right: Option<&Arc<Mutex<Object>>>
     ) -> Arc<Mutex<Object>>{

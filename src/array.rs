@@ -1,4 +1,5 @@
-use crate::classes::{ItemLoc, Operations};
+use std::collections::HashMap;
+use crate::classes::{ItemLoc, Operation};
 use std::rc::Rc;
 use std::sync::{Arc, Mutex};
 
@@ -11,7 +12,7 @@ pub(crate) struct Object {
     left: Option<Arc<Mutex<Object>>>,
     right: Option<Arc<Mutex<Object>>>,
     track_deps: bool,
-    forge_op: Operations,
+    forge_op: Operation,
 }
 
 impl Object {
@@ -20,7 +21,7 @@ impl Object {
         name: u64,
         shape: &Vec<u8>,
         track_deps: bool,
-        forge_op: Operations,
+        forge_op: Operation,
         left: Option<Arc<Mutex<Object>>>,
         right: Option<Arc<Mutex<Object>>>,
     ) -> Self {
@@ -44,7 +45,7 @@ impl Object {
         &self.shape
     }
 
-    pub fn get_op(&self) -> Operations {
+    pub fn get_op(&self) -> Operation {
         self.forge_op
     }
 
@@ -71,11 +72,12 @@ impl Object {
 
 pub struct DepTree{
     node: Arc<Mutex<Object>>,
-    forge_op: Operations,
+    forge_op: Operation,
     children: Vec<Rc<DepTree>>,
     height: usize,
     shape: Vec<u8>,
-    num_uses: u8
+    num_parents: u8,
+    parents: HashMap<u64, Arc<Mutex<Object>>>
 }
 
 impl  DepTree {
@@ -103,7 +105,8 @@ impl  DepTree {
             children,
             height: max_height.unwrap_or(0),
             shape: shape,
-            num_uses: 0,
+            num_parents: 0,
+            parents: HashMap::new()
         }
     }
 
@@ -141,17 +144,39 @@ impl  DepTree {
         return self.node.lock().unwrap().get_name();
     }
 
-    pub fn get_forge_op(&self) -> Operations {
+    pub fn get_forge_op(&self) -> Operation {
         return self.forge_op
     }
     
     pub fn get_num_use(&self) -> u8{
-        return self.num_uses
+        return self.num_parents
     }
     
     pub fn get_shape(&self) -> &Vec<u8>{
         return &self.shape;
     }
+
+    pub fn get_node(&self) -> Arc<Mutex<Object>> {
+        return Arc::clone(&self.node)
+    }
+
+    pub fn increment_num_parents(&mut self) {
+        self.num_parents += 1
+    }
+
+    pub fn get_num_parents(&self) -> u8 {
+        return self.num_parents
+    }
+
+    pub fn add_parent(&mut self, parent: &Arc<Mutex<Object>>) {
+        let name = parent.lock().unwrap().get_name();
+        self.parents.insert(name, Arc::clone(parent));
+    }
+
+    pub fn erase(&self) {
+        todo!();
+    }
+
 }
 
 
