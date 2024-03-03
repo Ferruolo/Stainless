@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <chrono>
 #include "library.cuh"
+#include "kernels.cuh"
 #define CEIL_DIV(M, N) (((M) + (N)-1) / (N))
 #define BLOCKSIZE 32
 #define NUM_LOAD BLOCKSIZE * 2

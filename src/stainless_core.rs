@@ -1,26 +1,97 @@
+use std::rc::Rc;
 use crate::array::{Object};
 use crate::classes::Operation::*;
-use crate::task_queue::TaskQueue;
 use std::sync::{Arc, Mutex};
+use std::thread;
+use std::thread::JoinHandle;
 use crate::classes::Operation;
+use crate::tast_queue::TaskQueue;
 
 // use crate::task_queue::TaskQueue;
 
 pub(crate) struct Executor {
-    queue: TaskQueue,
+    queue: Arc<Mutex<TaskQueue>>,
     name_iter: u64,
+    workers: Vec<JoinHandle<()>>,
+    terminator: Arc<Mutex<bool>>,
+    requires_completion_to_kill: bool
 }
 
 impl Executor {
-    pub fn init() -> Self {
-        Self {
-            queue: TaskQueue::init(),
-            name_iter: 0,
+    pub fn init(num_workers: u8) -> Self {
+        let queue = Arc::new(Mutex::new(TaskQueue::init()));
+        let terminator = Arc::new(Mutex::new(false));
+        let mut workers = Vec::new();
+        for _ in 0..num_workers {
+
+            let queue_ref = Arc::clone(&queue);
+            let terminator = Arc::clone(&terminator);
+            workers.push(thread::spawn(
+                move || {
+                    loop {
+                        if *terminator.lock().unwrap() {
+                            break
+                        }
+                        let item = {
+                            if let Some(item) = queue_ref.lock().unwrap().get_next() {
+                                item
+                            } else {
+                                continue;
+                            }
+                        };
+                        let forge_op = item.lock().unwrap().get_op();
+                        match forge_op {
+                            Add => {
+                                let target = item.lock().unwrap();
+                                let left = target.get_left();
+                                let right = target.get_right();
+                                match (left, right) {
+                                    (Some(l), Some(r)) => {
+                                        let l_name = l.lock().unwrap().get_name();
+                                        let r_name = r.lock().unwrap().get_name();
+                                        println!("{} + {} = {}", l_name, r_name, target.get_name());
+                                    }
+                                    (_, _) => {
+                                        println!("Add item has no ")
+                                    }
+                                }
+                            }
+                            MatMul => {
+                                println!("MatMul");
+                            }
+                            Init => {
+                                continue;
+                            }
+                        }
+
+
+                    }
+                }
+            ))
         }
+
+
+        Self {
+            queue,
+            name_iter: 0,
+            workers,
+            terminator,
+            requires_completion_to_kill: true
+        }
+    }
+
+    pub fn kill(&mut self) {
+        loop {
+            if !self.queue.lock().unwrap().still_live() {
+                break
+            }
+        }
+        *self.terminator.lock().unwrap() = true;
+        // TODO: Join Threads
     }
     fn mat_initializer(
         &mut self,
-        shape: &Vec<u8>,
+        shape: &Vec<u64>,
         track_deps: bool,
         forge_op: Operation,
         left: Option<&Arc<Mutex<Object>>>,
@@ -28,11 +99,11 @@ impl Executor {
     ) -> Arc<Mutex<Object>>{
         let parse_children =
             |a: Option<&Arc<Mutex<Object>>>| {
-            if let Some(c) = a {
-                return Some(Arc::clone(c))
-            } else {
-                return None;
-            }
+                return if let Some(c) = a {
+                    Some(Arc::clone(c))
+                } else {
+                    None
+                }
         };
 
 
@@ -48,7 +119,7 @@ impl Executor {
                 )
             )
         );
-        let opt_object = self.queue.push_object(new_obj);
+        let opt_object = self.queue.lock().unwrap().push_object(new_obj);
 
         self.name_iter += 1;
         return opt_object;
@@ -56,7 +127,7 @@ impl Executor {
 
 
 
-    pub fn build_matrix(&mut self, shape: &Vec<u8>) -> Arc<Mutex<Object>> {
+    pub fn create_uniform_random_matrix(&mut self, shape: &Vec<u64>) -> Arc<Mutex<Object>> {
         return self.mat_initializer(
             shape, true, Init, None, None
         );
@@ -105,7 +176,7 @@ impl Executor {
 
 
     pub fn print_graph(&self) {
-        self.queue.print_items();
+        self.queue.lock().unwrap().print_items();
     }
 
 

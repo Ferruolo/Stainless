@@ -1,3 +1,4 @@
+use crate::bindings::Matrix;
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash)]
 pub(crate) enum Operation {
@@ -10,6 +11,19 @@ pub(crate) enum Operation {
 pub(crate) enum ItemLoc {
     GPU, CPU, DISK
 }
+pub enum ComputationGraph {
+    Op(Box<ComputationGraph>, Box<ComputationGraph>),
+    M(usize),
+    NoPattern,
+}
+
+pub enum Executeable {
+    GpuMatrix(*mut Matrix),
+    CpuMatrix,
+    DiskItem,
+    None
+}
+
 
 // #[derive(Clone)]
 // pub(crate) enum CacheMove<'a> {

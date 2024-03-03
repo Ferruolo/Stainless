@@ -1,37 +1,38 @@
 #pragma once
-#include "kernels.cuh"
-extern "C" {
+
+// extern "C" {
     // Definitions
-    enum location {
-        GPU,
-        CPU
-    };
+enum location {
+    GPU,
+    CPU
+};
 
 
-    struct Matrix {
-        float *elements;
-        int size;
-        int *shape;
-        int num_dim;
-        location loc;
-    };
+struct Matrix {
+    float *elements;
+    int size;
+    int *shape;
+    int num_dim;
+    enum location loc;
+};
 
-    // Verification Test
-    void printMatrix(const struct Matrix *m);
+// extern "C" {
+// Verification Test
+void printMatrix(const struct Matrix *m);
 
-    bool checkMatrixEquality(Matrix *m1, Matrix *m2);
+int checkMatrixEquality(struct Matrix *m1, struct Matrix *m2);
 
-    // Create Matrix Functions
-    struct Matrix * MatrixFactory(int *shape, int num_dum, location loc);
+// Create Matrix Functions
+struct Matrix * MatrixFactory(int *shape, int num_dum, enum location loc);
 
-    struct Matrix * CreateUniformRandomMatrix(int * shape, int num_dim, location loc,
-            int min, int max);
+struct Matrix * CreateUniformRandomMatrix(const int * shape, int num_dim, enum location loc,
+        int min, int max);
 
-    struct Matrix *CreateConstMatrix(int num_dim, int *shape, int c, location loc);
+struct Matrix *CreateConstMatrix(int num_dim, int *shape, int c, enum location loc);
 
-    struct Matrix *CreateZeroMatrix(int num_dim, int *shape, location loc);
+struct Matrix *CreateZeroMatrix(int num_dim, int *shape, enum location loc);
 
-    struct Matrix * MatMul(struct Matrix *a, const struct Matrix *b);
+struct Matrix * MatMul(struct Matrix *a, const struct Matrix *b);
     //Helper Functions
 
 
@@ -95,5 +96,5 @@ extern "C" {
 //
 
 
-}
+// }
 

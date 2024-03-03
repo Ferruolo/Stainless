@@ -1,4 +1,5 @@
 #include "library.cuh"
+#include "kernels.cuh"
 #include <iostream>
 
 #define CEIL_DIV(M, N) (((M) + (N)-1) / (N))
@@ -26,7 +27,7 @@ void hello() {
 }
 
 
-struct Matrix * MatrixFactory(int *shape, int num_dum, location loc){
+struct Matrix * MatrixFactory(const int *shape, int num_dum, location loc){
     if (loc != GPU){
         std::cerr << "Only supports GPU atm" << std::endl;
         exit(1);
@@ -58,7 +59,7 @@ struct Matrix * MatrixFactory(int *shape, int num_dum, location loc){
 }
 
 
-Matrix * CreateUniformRandomMatrix(int * shape, int num_dim, location loc, int min_val, int max_val) {
+Matrix * CreateUniformRandomMatrix(const int * shape, int num_dim, location loc, int min_val, int max_val) {
     Matrix * m = MatrixFactory(shape, num_dim, loc);
     dim3 gridDim(CEIL_DIV(m->size, BLOCKSIZE * BLOCKSIZE));
     int blockThreads = min(BLOCKSIZE*BLOCKSIZE, m->size);
@@ -68,7 +69,7 @@ Matrix * CreateUniformRandomMatrix(int * shape, int num_dim, location loc, int m
     return m;
 }
 
-struct Matrix *CreateConstMatrix(int num_dim, int *shape, int c, location loc) {
+struct Matrix *CreateConstMatrix(int num_dim, const int *shape, int c, location loc) {
     Matrix * m = MatrixFactory(shape, num_dim, loc);
     dim3 gridDim(CEIL_DIV(m->size, BLOCKSIZE * BLOCKSIZE));
     dim3 blockDim(BLOCKSIZE * BLOCKSIZE);
@@ -76,7 +77,7 @@ struct Matrix *CreateConstMatrix(int num_dim, int *shape, int c, location loc) {
     return m;
 }
 
-struct Matrix *CreateZeroMatrix(int num_dim, int *shape, location loc) {
+struct Matrix *CreateZeroMatrix(int num_dim, const int *shape, location loc) {
     return CreateConstMatrix(num_dim, shape, 0, loc);
 }
 
@@ -93,7 +94,7 @@ void printMatrix(const struct Matrix *m) {
     free(temp);
 }
 
-bool checkMatrixEquality(Matrix *m1, Matrix *m2) {
+int checkMatrixEquality(const Matrix *m1, const Matrix *m2) {
     if (m1->num_dim != m2->num_dim) {
         return false;
     }
@@ -123,7 +124,7 @@ bool checkMatrixEquality(Matrix *m1, Matrix *m2) {
     return true;
 }
 
-struct Matrix * MatMul(struct Matrix *a, const struct Matrix *b) {
+struct Matrix * MatMul(const struct Matrix *a, const struct Matrix *b) {
     if (a->shape[1] != b->shape[0]) {
         printf("Matrix size mismatched");
         exit(1);

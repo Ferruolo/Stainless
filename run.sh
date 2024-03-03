@@ -2,7 +2,8 @@ cd CudaLib
 make clean
 make release
 cd ..
+bindgen CudaLib/wrapper.h -o src/bindings.rs       --no-layout-tests
 export LD_LIBRARY_PATH=./CudaLib/:$LD_LIBRARY_PATH
-cargo clean
+#cargo clean
 cargo build
-./target/debug/Stainless
+#./target/debug/Stainless

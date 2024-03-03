@@ -1,14 +1,13 @@
 use std::collections::HashMap;
-use crate::classes::{ItemLoc, Operation};
-use std::rc::Rc;
 use std::sync::{Arc, Mutex};
 
-pub(crate) struct Object {
+use crate::classes::{ItemLoc, Operation};
 
+pub(crate) struct Object {
     loc: ItemLoc,
     name: u64,
-    shape: Vec<u8>,
-    dependency_tree: Option<Rc<DepTree>>,
+    shape: Vec<u64>,
+    dependency_tree: Option<Arc<Mutex<DepTree>>>,
     left: Option<Arc<Mutex<Object>>>,
     right: Option<Arc<Mutex<Object>>>,
     track_deps: bool,
@@ -16,10 +15,9 @@ pub(crate) struct Object {
 }
 
 impl Object {
-
     pub(crate) fn init(
         name: u64,
-        shape: &Vec<u8>,
+        shape: &Vec<u64>,
         track_deps: bool,
         forge_op: Operation,
         left: Option<Arc<Mutex<Object>>>,
@@ -37,11 +35,15 @@ impl Object {
         }
     }
 
-    pub fn set_dependency(&mut self, dep: &Rc<DepTree>) {
-        self.dependency_tree = Some(Rc::clone(dep));
+    pub fn set_dependency(&mut self, dep: &Arc<Mutex<DepTree>>) {
+        self.dependency_tree = Some(Arc::clone(dep));
     }
 
-    pub fn get_shape(&self) -> &Vec<u8> {
+    pub fn remove_dependency(&mut self) {
+        self.dependency_tree = None;
+    }
+
+    pub fn get_shape(&self) -> &Vec<u64> {
         &self.shape
     }
 
@@ -56,9 +58,9 @@ impl Object {
         return &self.right;
     }
 
-    pub fn get_dep(&self) -> Option<Rc<DepTree>> {
+    pub fn get_dep(&self) -> Option<Arc<Mutex<DepTree>>> {
         if let Some(d) = &self.dependency_tree {
-            return Some(Rc::clone(d));
+            return Some(Arc::clone(d));
         } else {
             return None;
         }
@@ -67,20 +69,24 @@ impl Object {
     pub fn get_name(&self) -> u64 {
         return self.name;
     }
+
+    pub fn get_loc(&self) -> ItemLoc {
+        return self.loc;
+    }
 }
 
-
-pub struct DepTree{
+pub struct DepTree {
     node: Arc<Mutex<Object>>,
     forge_op: Operation,
-    children: Vec<Rc<DepTree>>,
+    children: Vec<Arc<Mutex<DepTree>>>,
     height: usize,
-    shape: Vec<u8>,
+    shape: Vec<u64>,
     num_parents: u8,
-    parents: HashMap<u64, Arc<Mutex<Object>>>
+    parents: HashMap<u64, Arc<Mutex<Object>>>,
+    loc: ItemLoc,
 }
 
-impl  DepTree {
+impl DepTree {
     pub(crate) fn init(refers_to: Arc<Mutex<Object>>) -> Self {
         let mut children = Vec::new();
         {
@@ -89,50 +95,56 @@ impl  DepTree {
             for c in unwrapped_children {
                 if let Some(child) = c {
                     if let Some(dep) = child.lock().unwrap().get_dep() {
-                        children.push(Rc::clone(&dep))
+                        children.push(Arc::clone(&dep))
                     }
                 }
             }
         }
-        
 
-        let max_height = children.iter().map(|c| c.height + 1).max();
+        let max_height = children
+            .iter()
+            .map(|c| c.lock().unwrap().height + 1)
+            .max()
+            .unwrap_or(0);
         let shape = refers_to.lock().unwrap().shape.clone();
-
+        let loc = refers_to.lock().unwrap().get_loc();
         Self {
             node: Arc::clone(&refers_to),
             forge_op: refers_to.lock().unwrap().get_op(),
             children,
-            height: max_height.unwrap_or(0),
+            height: max_height,
             shape: shape,
             num_parents: 0,
-            parents: HashMap::new()
+            parents: HashMap::new(),
+            loc,
         }
     }
 
-    pub fn merge(&self, other: &Rc<DepTree>) -> Option<Arc<Mutex<Object>>> {
-        if other.children.len() == 0
-            || other.children.len() != self.children.len()
-            || other.forge_op != self.forge_op {
+    pub fn merge(&self, other: &Arc<Mutex<DepTree>>) -> Option<Arc<Mutex<Object>>> {
+        let len = other.lock().unwrap().children.len();
+        let o_forge_op = other.lock().unwrap().forge_op;
+
+        if len == 0 || len != self.children.len() || o_forge_op != self.forge_op {
             return None;
         }
 
-        for (s, o) in self.children.iter().zip(other.children.iter()) {
-            let s_name = s.node.lock().unwrap().get_name();
-            let o_name = o.node.lock().unwrap().get_name();
+        let other_children = other.lock().unwrap().children.clone();
+        for (s, o) in self.children.iter().zip(other_children.iter()) {
+            let s_name = s.lock().unwrap().node.lock().unwrap().get_name();
+            let o_name = o.lock().unwrap().node.lock().unwrap().get_name();
             if s_name != o_name {
-                return None
+                return None;
             }
         }
 
-        return Some(Arc::clone(&self.node))
+        return Some(Arc::clone(&self.node));
     }
 
     pub fn get_num_children(&self) -> usize {
-         return self.children.len();
+        return self.children.len();
     }
 
-    pub fn get_children(&self) -> Vec<Rc<DepTree>> {
+    pub fn get_children(&self) -> Vec<Arc<Mutex<DepTree>>> {
         return self.children.clone();
     }
 
@@ -145,19 +157,19 @@ impl  DepTree {
     }
 
     pub fn get_forge_op(&self) -> Operation {
-        return self.forge_op
+        return self.forge_op;
     }
-    
-    pub fn get_num_use(&self) -> u8{
-        return self.num_parents
+
+    pub fn get_num_use(&self) -> u8 {
+        return self.num_parents;
     }
-    
-    pub fn get_shape(&self) -> &Vec<u8>{
+
+    pub fn get_shape(&self) -> &Vec<u64> {
         return &self.shape;
     }
 
     pub fn get_node(&self) -> Arc<Mutex<Object>> {
-        return Arc::clone(&self.node)
+        return Arc::clone(&self.node);
     }
 
     pub fn increment_num_parents(&mut self) {
@@ -165,7 +177,7 @@ impl  DepTree {
     }
 
     pub fn get_num_parents(&self) -> u8 {
-        return self.num_parents
+        return self.num_parents;
     }
 
     pub fn add_parent(&mut self, parent: &Arc<Mutex<Object>>) {
@@ -174,9 +186,17 @@ impl  DepTree {
     }
 
     pub fn erase(&self) {
+        // self.node.lock().unwrap().remove_dependency();
+        // for (_, parent) in self.parents {
+        //     parent.lock().unwrap().remove_child(self.get_name());
+        // }
+        // for child in self.children {
+        //     child.remove_parent(self.get_name());
+        // }
         todo!();
     }
 
+    pub fn get_loc(&self) -> ItemLoc {
+        return self.loc;
+    }
 }
-
-
