@@ -1,4 +1,3 @@
-use std::rc::Rc;
 use crate::array::{Object};
 use crate::classes::Operation::*;
 use std::sync::{Arc, Mutex};
@@ -7,31 +6,39 @@ use std::thread::JoinHandle;
 use crate::classes::Operation;
 use crate::tast_queue::TaskQueue;
 
-// use crate::task_queue::TaskQueue;
+
+
+
 
 pub(crate) struct Executor {
-    queue: Arc<Mutex<TaskQueue>>,
-    name_iter: u64,
-    workers: Vec<JoinHandle<()>>,
-    terminator: Arc<Mutex<bool>>,
-    requires_completion_to_kill: bool
+    queue: Arc<Mutex<TaskQueue>>, // Main task queue, accepts push and pop requests,
+                                  // returns items in optimized order
+    name_iter: u64, // Current name item
+    workers: Vec<JoinHandle<()>>, // Set of all worker threads, allows for easy management of threads
+    terminator: Arc<Mutex<bool>>, // Tells threads when terminate
+    requires_completion_to_kill: bool // Prevents code from terminating before end of threads
 }
 
 impl Executor {
     pub fn init(num_workers: u8) -> Self {
+        //Create Queue, queue must be locked in a mutex, despite the fact that execution only pulls from one thread
         let queue = Arc::new(Mutex::new(TaskQueue::init()));
+        // Create terminator, kills threads when set to true
         let terminator = Arc::new(Mutex::new(false));
         let mut workers = Vec::new();
+        //TODO: Move to hub and spoke model, as this is easier to generalize to distributed systems
         for _ in 0..num_workers {
-
+            //Initiate reference to queue so that worker can pull the next
             let queue_ref = Arc::clone(&queue);
             let terminator = Arc::clone(&terminator);
             workers.push(thread::spawn(
                 move || {
                     loop {
+                        //terminate if everythings done
                         if *terminator.lock().unwrap() {
                             break
                         }
+                        // Get item, if one exists
                         let item = {
                             if let Some(item) = queue_ref.lock().unwrap().get_next() {
                                 item
@@ -39,6 +46,7 @@ impl Executor {
                                 continue;
                             }
                         };
+                        // Wrap up if
                         let forge_op = item.lock().unwrap().get_op();
                         match forge_op {
                             Add => {
@@ -69,7 +77,6 @@ impl Executor {
                 }
             ))
         }
-
 
         Self {
             queue,
