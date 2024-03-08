@@ -6,6 +6,8 @@ mod tast_queue;
 
 mod bindings;
 mod binding_interface;
+mod dep_tree;
+mod optimizations;
 
 use crate::stainless_core::Executor;
 
