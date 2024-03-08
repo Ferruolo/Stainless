@@ -8,7 +8,8 @@ use std::sync::{Arc, Mutex};
 use crate::array::{DepTree, Object};
 use crate::classes::ComputationGraph::{NoPattern, Op, M};
 use crate::classes::Operation::*;
-use crate::classes::{ComputationGraph, ItemLoc, Operation};
+use crate::classes::{ComputationGraph, ItemLoc, Operation, ThreadCommands};
+use crate::classes::ThreadCommands::{Calculation, NullType};
 
 pub struct TaskQueue {
     dependency_graph: VecDeque<Arc<Mutex<VecDeque<Arc<Mutex<DepTree>>>>>>,
@@ -25,15 +26,15 @@ impl TaskQueue {
         }
     }
 
-    pub fn get_next(&mut self) -> Option<Arc<Mutex<Object>>> {
+    pub fn get_next(&mut self) -> ThreadCommands {
         let mut bottom_line = match self.dependency_graph.front() {
             Some(line) => Arc::clone(line),
-            None => return None,
+            None => return NullType,
         };
 
         let calc_item = match bottom_line.lock().unwrap().pop_front() {
             Some(next) => next,
-            None => return None,
+            None => return NullType,
         };
 
         if bottom_line.lock().unwrap().is_empty() {
@@ -44,8 +45,8 @@ impl TaskQueue {
 
         let live_calculations = Arc::clone(&self.live_calculations);
         *live_calculations.lock().unwrap() -= 1;
-
-        Some(Arc::clone(&node))
+        
+        Calculation(Arc::clone(&node))
     }
     pub fn push_object(&mut self, item: Arc<Mutex<Object>>) -> Arc<Mutex<Object>> {
         let dep = Arc::new(Mutex::new(DepTree::init(Arc::clone(&item))));
@@ -274,21 +275,3 @@ fn build_new_tree(
         }
     }
 }
-
-// fn delete_old_tree(&self, graph: &ComputationGraph, tree: Rc<DepTree>, parent_name: Option<u64>) {
-//     // if let Some(parent) = parent_name {
-//     //     tree.remove_parent(parent);
-//     // }
-//     let name = tree.get_name();
-//
-//     match graph {
-//         Op(l, r) => {
-//             self.delete_old_tree(&*l, Rc::clone(&tree.get_children()[0]), Some(name))
-//         }
-//         M(_) => {return;}
-//         NoPattern => {return;}
-//     }
-//     if (tree.get_num_parents() == 0) {
-//         tree.erase();
-//     }
-// }

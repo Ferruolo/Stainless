@@ -1,3 +1,6 @@
+use std::sync::mpsc::Sender;
+use std::sync::{Arc, Mutex};
+use crate::array::Object;
 use crate::bindings::Matrix;
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash)]
@@ -17,7 +20,7 @@ pub enum ComputationGraph {
     NoPattern,
 }
 
-pub enum Executeable {
+pub enum Executable {
     GpuMatrix(*mut Matrix),
     CpuMatrix,
     DiskItem,
@@ -25,20 +28,23 @@ pub enum Executeable {
 }
 
 
-// #[derive(Clone)]
-// pub(crate) enum CacheMove<'a> {
-//     Gpu2Gpu(&'a Object),
-//     Gpu2Cpu(&'a Object),
-//     Cpu2Gpu(&'a Object),
-//     Cpu2Cpu(&'a Object),
-//     Cpu2Disk(&'a Object),
-//     Disk2Cpu(&'a Object),
-//     Disk2Disk(&'a Object)
-// }
+#[derive(Clone)]
+pub(crate) enum CacheDirection {
+    Gpu2Gpu,
+    Gpu2Cpu,
+    Cpu2Gpu,
+    Cpu2Cpu,
+    Cpu2Disk,
+    Disk2Cpu,
+    Disk2Disk
+}
 
-// pub(crate) enum Instruct<'a> {
-//     CacheMove(CacheMove<'a>),
-//     Calculation(&'a Object),
-//     None
-// }
 
+
+pub(crate) enum ThreadCommands {
+    FREE(usize, Sender<ThreadCommands>),
+    CacheMove(CacheDirection),
+    Calculation(Arc<Mutex<Object>>),
+    KILL,
+    NullType
+}
