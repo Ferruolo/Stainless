@@ -11,6 +11,12 @@ use crate::classes::Operation::*;
 use crate::classes::{ComputationGraph, ItemLoc, Operation, ThreadCommands};
 use crate::classes::ThreadCommands::{Calculation, NullType};
 
+// TODO: REWRITE TRIGGERED
+// TODO: 
+// 1. Convert to Fibonacci Tree / Priority Queue interface, where
+//    items are sorted using 
+
+
 pub struct TaskQueue {
     dependency_graph: VecDeque<Arc<Mutex<VecDeque<Arc<Mutex<DepTree>>>>>>,
     height_boost: usize,
