@@ -1,16 +1,13 @@
 
 
-2. Implement Backprop and SGD/ADAM update rules
+2. Add MultiThreaded Computation on single GPU
 
-2. Implement MultiCore And Order Optimization
+3. Add support for Different memory levels, add this to the Manager thread
 
-# Distributed
-3. Add NVIDIA support
+4. Train a vanilla model on MNIST numbers to demonstrate basic ability
 
-4. (IF TIME) Create Stainless client, and Stainless Host
+5. Set up Mistral 7B
 
-5. Implement Basic Neural Net, Linear/Quadratic Programing Solver, Newton's Method Solver
+6. 
 
-6. Add Breakpoints (Or the Code will assign one for you)
-
-
+(SOMETIME). Write proofs of correctness and optimality 

@@ -1,9 +1,8 @@
 
 mod classes;
 mod stainless_core;
-mod array;
-mod tast_queue;
-
+mod object;
+mod task_scheduler;
 mod bindings;
 mod binding_interface;
 mod dep_tree;

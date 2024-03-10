@@ -1,6 +1,6 @@
 use std::sync::mpsc::Sender;
 use std::sync::{Arc, Mutex};
-use crate::array::Object;
+use crate::object::Object;
 use crate::bindings::Matrix;
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash)]
@@ -29,7 +29,7 @@ pub enum Executable {
 
 
 #[derive(Clone)]
-pub(crate) enum CacheDirection {
+pub(crate) enum LocationMove {
     Gpu2Gpu,
     Gpu2Cpu,
     Cpu2Gpu,
@@ -42,9 +42,10 @@ pub(crate) enum CacheDirection {
 
 
 pub(crate) enum ThreadCommands {
-    FREE(usize, Sender<ThreadCommands>),
-    CacheMove(CacheDirection),
+    FREE(Sender<ThreadCommands>),
+    CacheMove(LocationMove),
     Calculation(Arc<Mutex<Object>>),
+    ComputeObject(Arc<Mutex<Object>>),
     KILL,
     NullType
 }

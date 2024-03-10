@@ -8,7 +8,6 @@ pub(crate) struct Object {
     loc: ItemLoc,
     name: u64,
     shape: Vec<u64>,
-    dependency_tree: Option<Arc<Mutex<DepTree>>>,
     left: Option<Arc<Mutex<Object>>>,
     right: Option<Arc<Mutex<Object>>>,
     track_deps: bool,
@@ -28,20 +27,11 @@ impl Object {
             loc: ItemLoc::CPU,
             name,
             shape: shape.clone(),
-            dependency_tree: None,
             left,
             right,
             track_deps,
             forge_op,
         }
-    }
-
-    pub fn set_dependency(&mut self, dep: &Arc<Mutex<DepTree>>) {
-        self.dependency_tree = Some(Arc::clone(dep));
-    }
-
-    pub fn remove_dependency(&mut self) {
-        self.dependency_tree = None;
     }
 
     pub fn get_shape(&self) -> &Vec<u64> {
@@ -59,13 +49,6 @@ impl Object {
         return &self.right;
     }
 
-    pub fn get_dep(&self) -> Option<Arc<Mutex<DepTree>>> {
-        if let Some(d) = &self.dependency_tree {
-            return Some(Arc::clone(d));
-        } else {
-            return None;
-        }
-    }
 
     pub fn get_name(&self) -> u64 {
         return self.name;
