@@ -7,6 +7,7 @@ mod bindings;
 mod binding_interface;
 mod dep_tree;
 mod optimizations;
+mod FibonacciQueue;
 
 use crate::stainless_core::Executor;
 

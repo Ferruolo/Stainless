@@ -10,7 +10,7 @@ pub(crate) enum Operation {
     Init
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq, Eq)]
 pub(crate) enum ItemLoc {
     GPU, CPU, DISK
 }
@@ -24,9 +24,9 @@ pub enum Executable {
     GpuMatrix(*mut Matrix),
     CpuMatrix,
     DiskItem,
+    ComputationPending,
     None
 }
-
 
 #[derive(Clone)]
 pub(crate) enum LocationMove {
@@ -36,7 +36,8 @@ pub(crate) enum LocationMove {
     Cpu2Cpu,
     Cpu2Disk,
     Disk2Cpu,
-    Disk2Disk
+    Disk2Disk,
+    Machine2Machine
 }
 
 
@@ -49,3 +50,4 @@ pub(crate) enum ThreadCommands {
     KILL,
     NullType
 }
+

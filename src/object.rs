@@ -1,8 +1,5 @@
-use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
-
 use crate::classes::{ItemLoc, Operation};
-use crate::dep_tree::DepTree;
 
 pub(crate) struct Object {
     loc: ItemLoc,
@@ -11,8 +8,10 @@ pub(crate) struct Object {
     left: Option<Arc<Mutex<Object>>>,
     right: Option<Arc<Mutex<Object>>>,
     track_deps: bool,
+    // executable: Executable,
     forge_op: Operation,
 }
+
 
 impl Object {
     pub(crate) fn init(
@@ -42,13 +41,19 @@ impl Object {
         self.forge_op
     }
 
-    pub fn get_left(&self) -> &Option<Arc<Mutex<Object>>> {
-        return &self.left;
-    }
-    pub fn get_right(&self) -> &Option<Arc<Mutex<Object>>> {
-        return &self.right;
+    pub fn get_left(&self) -> Option<Arc<Mutex<Object>>> {
+        match &self.left {
+            None => {None}
+            Some(l) => {Some(Arc::clone(l))}
+        }
     }
 
+    pub fn get_right(&self) -> Option<Arc<Mutex<Object>>> {
+        match &self.right {
+            None => {None}
+            Some(r) => {Some(Arc::clone(r))}
+        }
+    }
 
     pub fn get_name(&self) -> u64 {
         return self.name;
@@ -59,3 +64,18 @@ impl Object {
     }
 }
 
+impl PartialEq for Object {
+    fn eq(&self, other: &Self) -> bool {
+        todo!()
+    }
+
+    fn ne(&self, other: &Self) -> bool {
+        todo!()
+    }
+}
+
+impl Eq for Object {
+    fn eq(&self) {
+        todo!()
+    }
+}
