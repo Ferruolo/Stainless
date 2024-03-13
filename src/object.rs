@@ -1,6 +1,8 @@
 use std::sync::{Arc, Mutex};
 use crate::classes::{ItemLoc, Operation};
 
+
+#[derive(Eq)]
 pub(crate) struct Object {
     loc: ItemLoc,
     name: u64,
@@ -74,8 +76,3 @@ impl PartialEq for Object {
     }
 }
 
-impl Eq for Object {
-    fn eq(&self) {
-        todo!()
-    }
-}

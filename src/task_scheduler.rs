@@ -90,7 +90,7 @@ impl Scheduler {
             // Remove all children from the tree
             // ensures we don't have hanging memory
             Some(Calculation(next.get_node()))
- 
+
         } else {
             None
         };
@@ -112,7 +112,7 @@ impl Scheduler {
     }
 
     /*
-        Returns true if process can be killed 
+        Returns true if process can be killed
     */
     pub fn can_kill(&self) -> bool {
         return self.terminator && self.num_live == 0;

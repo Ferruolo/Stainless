@@ -3,11 +3,11 @@ use std::collections::HashMap;
 use std::hash::{Hash, Hasher};
 use std::rc::Rc;
 use std::sync::{Arc, Mutex};
-
 use crate::classes::ItemLoc;
+use crate::FibonacciQueue::FibInterface;
 use crate::object::Object;
 
-#[derive(Eq)]
+
 pub(crate) struct DepTree {
     node: Arc<Mutex<Object>>,
     children: Vec<Rc<DepTree>>,
@@ -55,7 +55,7 @@ impl DepTree {
         return self.height;
     }
 
-    fn increment_num_dependencies(&mut self) {
+    pub(crate) fn increment_num_dependencies(&mut self) {
         self.num_dependencies += 1;
     }
 
@@ -81,43 +81,28 @@ impl DepTree {
 }
 
 
-impl PartialEq<Self> for DepTree {
-    fn eq(&self, other: &Self) -> bool {
-        self.height == other.height
-            && self.num_dependencies == other.num_dependencies
-            && self.name == other.name
-    }
-    fn ne(&self, other: &Self) -> bool {
-        return !self.eq(other);
-    }
-}
-
-
-
-impl PartialOrd for DepTree {
-    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        Some(self.cmp(other))
-    }
-}
-
-
-impl Ord for DepTree {
-    fn cmp(&self, other: &Self) -> Ordering {
-        match self.height.cmp(&other.height) {
-            Ordering::Equal => {
-                match self.num_dependencies.cmp(&other.num_dependencies) {
-                    Ordering::Equal => self.name.cmp(&other.name),
-                    order => order,
-                }
-            }
-            order => order,
-        }
-    }
-}
-
-
 impl Hash for DepTree {
     fn hash<H: Hasher>(&self, state: &mut H) {
         return self.name.hash(state)
     }
+}
+
+
+impl FibInterface for Rc<DepTree> {
+    fn get_key(&self) -> u64 {
+        todo!()
+    }
+
+    fn compare_items(&self, other: &Self) -> bool {
+        if self.height != other.height {
+            return self.height < other.height;
+        } else if self.num_dependencies != other.num_dependencies {
+            return self.num_dependencies > other.num_dependencies
+        } else if self.name != other.name {
+            return self.name < other.name;
+        } else {
+            return false
+        }
+    }
+
 }
