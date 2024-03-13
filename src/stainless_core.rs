@@ -31,6 +31,35 @@ impl Executor {
             name_iter: 0,
         }
     }
+    fn matrix_builder(&self,
+                      shape: &Vec<u64>,
+                      left: Option<&Arc<Mutex<Object>>>,
+                      right: Option<&Arc<Mutex<Object>>>,
+                      forge_op: Operation
+    ) -> Arc<Mutex<Object>> {
+        let handle_deps = |x: Option<&Arc<Mutex<Object>>>| {
+            match x {
+                None => {None}
+                Some(item) => {Some(Arc::clone(item))}
+            }
+        };
+
+
+        let new_obj = Arc::new(Mutex::new(Object::init(
+            self.name_iter,
+            &shape,
+            true,
+            forge_op,
+            handle_deps(left),
+            handle_deps(right)
+        )));
+        self.manager_inbox.send(Calculation(Arc::clone(&new_obj))).unwrap();
+        return new_obj;
+    }
+
+
+
+
 }
 
 // Spins up and defines the manager
