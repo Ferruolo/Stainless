@@ -1,13 +1,17 @@
 
+1. Fix Fibonacci queue to support changing num_dependencies
 
-2. Add MultiThreaded Computation on single GPU
+2. Implement a sample program with NO GPU or Memory attention given
 
-3. Add support for Different memory levels, add this to the Manager thread
+3. Add basic memory management and GPU computation
 
-4. Train a vanilla model on MNIST numbers to demonstrate basic ability
+4. Define next steps for memory management
 
-5. Set up Mistral 7B
+5. Implement next steps for memory management
 
-6. 
+6. Add basic linear algebra functionality
+
+7. Train a vanilla model on MNIST numbers to demonstrate basic ability
+
 
 (SOMETIME). Write proofs of correctness and optimality 

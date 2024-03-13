@@ -103,7 +103,7 @@ fn initialize_workers(
     manager_address: &Sender<ThreadCommands>,
 ) -> Vec<JoinHandle<()>> {
     let mut workers = Vec::new();
-    for i in 0..num_workers {
+    for _i in 0..num_workers {
         // Define chanel for worker
         let (tx, rx): (Sender<ThreadCommands>, Receiver<ThreadCommands>) = mpsc::channel();
         workers.push(thread::spawn(move || loop {
@@ -145,7 +145,7 @@ fn perform_calculation(target: Arc<Mutex<Object>>) {
             todo!();
         }
         Operation::MatMul => {
-            let left = Arc::clone(&target.lock().unwrap().get_left().unwrap());
+            Arc::clone(&target.lock().unwrap().get_left().unwrap());
         }
         Operation::Init => {}
     }
