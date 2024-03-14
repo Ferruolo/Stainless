@@ -7,7 +7,7 @@ mod bindings;
 mod binding_interface;
 mod dep_tree;
 mod optimizations;
-mod FibonacciQueue;
+mod fibonacci_queue;
 
 use crate::stainless_core::MultiThread;
 

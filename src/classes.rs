@@ -1,18 +1,26 @@
 use std::sync::mpsc::Sender;
 use std::sync::{Arc, Mutex};
 use crate::object::Object;
-use crate::bindings::Matrix;
+
+#[derive(Copy, Clone, PartialEq, Eq, Hash)]
+pub(crate) enum MatrixInitType {
+    UniformRandomMatrix,
+    ConstantMatrix(u32),
+    DiagonalMatrix(u32),
+}
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash)]
 pub(crate) enum Operation {
     Add,
-    MatMul,
-    Init
+    MatrixMult,
+    Init(MatrixInitType),
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub(crate) enum ItemLoc {
-    GPU, CPU, DISK
+    GPU,
+    CPU,
+    DISK,
 }
 pub enum ComputationGraph {
     Op(Box<ComputationGraph>, Box<ComputationGraph>),
@@ -20,13 +28,6 @@ pub enum ComputationGraph {
     NoPattern,
 }
 
-pub enum Executable {
-    GpuMatrix(*mut Matrix),
-    CpuMatrix,
-    DiskItem,
-    ComputationPending,
-    None
-}
 
 #[derive(Clone)]
 pub(crate) enum LocationMove {
@@ -37,10 +38,8 @@ pub(crate) enum LocationMove {
     Cpu2Disk,
     Disk2Cpu,
     Disk2Disk,
-    Machine2Machine
+    Machine2Machine,
 }
-
-
 
 pub(crate) enum ThreadCommands {
     FREE(Sender<ThreadCommands>),
@@ -48,6 +47,6 @@ pub(crate) enum ThreadCommands {
     Calculation(Arc<Mutex<Object>>),
     ComputeObject(Arc<Mutex<Object>>),
     KILL,
-    NullType
+    NullType,
 }
 

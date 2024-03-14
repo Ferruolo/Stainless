@@ -4,7 +4,7 @@ use std::hash::{Hash, Hasher};
 use std::rc::Rc;
 use std::sync::{Arc, Mutex};
 use crate::classes::ItemLoc;
-use crate::FibonacciQueue::FibInterface;
+use crate::fibonacci_queue::FibInterface;
 use crate::object::Object;
 
 

@@ -13,7 +13,7 @@ use crate::classes::ThreadCommands::{CacheMove, Calculation};
 use crate::classes::{LocationMove, ThreadCommands};
 use crate::dep_tree::DepTree;
 use crate::object::Object;
-use crate::FibonacciQueue::FibonacciHeap;
+use crate::fibonacci_queue::{DepTreeFibonacciHeap};
 use std::collections::{HashMap, VecDeque};
 use std::rc::Rc;
 use std::sync::{Arc, Mutex};
@@ -23,7 +23,7 @@ pub(crate) struct Scheduler {
     // Used for O(1) lookup of children,
     //preventing circular dependency which would
     // require locking DepTrees behind a mutex
-    computation_queue: FibonacciHeap<Rc<DepTree>>,
+    computation_queue: DepTreeFibonacciHeap,
     // Queue of items to be computed. Designed so items with lowest height and lowest number
     // of direct dependencies are computed first.
     // TODO: Write correctness and optimality proofs for this
@@ -43,7 +43,7 @@ impl Scheduler {
         // Initialize Elements
         return Self {
             name_lookup: HashMap::with_capacity(20),
-            computation_queue: FibonacciHeap::new(),
+            computation_queue: DepTreeFibonacciHeap::new(),
             location_move_queue: Default::default(),
             terminator: false,
             num_live: 0,
@@ -61,7 +61,7 @@ impl Scheduler {
             .insert(new_dep_tree.get_name(), Rc::clone(&new_dep_tree));
         // increment number of dependencies all children to re-establish invariant
         for item in new_dep_tree.get_children() {
-            self.computation_queue.add_dependencies(item);
+            self.computation_queue.update_num_dependencies(item.get_name());
         }
         // Queue up for computation
         self.computation_queue.insert(new_dep_tree);
@@ -78,7 +78,7 @@ impl Scheduler {
     pub fn get_next(&mut self) -> Option<ThreadCommands> {
         // Make sure all cache movements are scheduled. If everything is in the
         // right place for the min item, then nothing will be scheduled here
-        self.schedule_movements(self.computation_queue.minimum().unwrap().clone());
+        self.schedule_movements(self.computation_queue.get_min().unwrap().clone());
 
         // Make sure all cache movements are executed before the next item is taken
         // off the queue. If all cache movements are completed, schedule the computation

@@ -1,7 +1,8 @@
 use std::sync::{Arc, Mutex};
+// use crate::binding_interface::RustMatrix;
+use crate::bindings::Matrix;
 use crate::classes::{ItemLoc, Operation};
-
-
+use crate::binding_interface::RustMatrix;
 
 pub(crate) struct Object {
     loc: ItemLoc,
@@ -10,10 +11,9 @@ pub(crate) struct Object {
     left: Option<Arc<Mutex<Object>>>,
     right: Option<Arc<Mutex<Object>>>,
     track_deps: bool,
-    // executable: Executable,
+    executable: RustMatrix,
     forge_op: Operation,
 }
-
 
 impl Object {
     pub(crate) fn init(
@@ -32,6 +32,7 @@ impl Object {
             right,
             track_deps,
             forge_op,
+            executable: RustMatrix::init(),
         }
     }
 
@@ -64,6 +65,15 @@ impl Object {
     pub fn get_loc(&self) -> ItemLoc {
         return self.loc;
     }
+
+    pub fn set_matrix(&mut self, mat: *mut Matrix) {
+        self.executable.set_gpu_mat(mat);
+    }
+
+    pub fn get_executable(&self) -> *mut Matrix {
+        return self.executable.get_gpu_mat();
+    }
+
 }
 
 impl PartialEq for Object {

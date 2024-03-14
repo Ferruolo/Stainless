@@ -10,12 +10,12 @@
 //Return -> size
 //Modify -> newShapeArray
 //Expect -> num_dims, oldShapeArray
-int copyShape(const int &num_dim, int *oldShape, int * newShape) {
+int copyShape(const int &num_dim, int *oldShape, int * new_shape) {
 
     int size = 1;
     for (int i = 0; i < num_dim; ++i){
-        newShape[i] = oldShape[i];
-        size *= newShape[i];
+        new_shape[i] = oldShape[i];
+        size *= new_shape[i];
     }
     return size;
 }
@@ -37,13 +37,13 @@ struct Matrix * MatrixFactory(const int *shape, int num_dum, location loc){
     }
     Matrix * m = (Matrix *) malloc(sizeof(Matrix));
 
-    int *newShape = (int *) malloc(num_dum * sizeof(int));
+    int *new_shape = (int *) malloc(num_dum * sizeof(int));
     for (int i = 0; i < num_dum; ++i){
-        newShape[i] = shape[i];
+        new_shape[i] = shape[i];
     }
 
     //Only supports 2-dimensional at the moment
-    int size = newShape[0] * newShape[1];
+    int size = new_shape[0] * new_shape[1];
 
     float *elements;
 
@@ -52,7 +52,7 @@ struct Matrix * MatrixFactory(const int *shape, int num_dum, location loc){
 
     m->elements = elements;
     m->size = size;
-    m->shape = newShape;
+    m->shape = new_shape;
     m->num_dim = num_dum;
     m->loc = loc;
     return m;
@@ -129,11 +129,11 @@ struct Matrix * MatMul(const struct Matrix *a, const struct Matrix *b) {
         printf("Matrix size mismatched");
         exit(1);
     }
-    int newShape[2] = {a->shape[0], b->shape[1]};
+    int new_shape[2] = {a->shape[0], b->shape[1]};
 
-    Matrix *C = CreateZeroMatrix(b->num_dim, newShape, GPU);
+    Matrix *C = CreateZeroMatrix(b->num_dim, new_shape, GPU);
 
-    dim3 gridDim(CEIL_DIV(newShape[0], BLOCKSIZE), CEIL_DIV(newShape[1], BLOCKSIZE), 1);
+    dim3 gridDim(CEIL_DIV(new_shape[0], BLOCKSIZE), CEIL_DIV(new_shape[1], BLOCKSIZE), 1);
 
     dim3 blockDim(BLOCKSIZE, BLOCKSIZE);
 

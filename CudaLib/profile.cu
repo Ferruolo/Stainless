@@ -49,9 +49,9 @@ int main() {
 
     //////////////////////////////////////////////////////////////////////////////
 
-    int newShape[2] = {matA->shape[0], matB->shape[1]};
-    Matrix *matMulRes = CreateZeroMatrix(matB->num_dim, newShape, GPU);
-    dim3 gridDim(CEIL_DIV(newShape[1], BLOCKSIZE), CEIL_DIV(newShape[0], BLOCKSIZE));
+    int new_shape[2] = {matA->shape[0], matB->shape[1]};
+    Matrix *matMulRes = CreateZeroMatrix(matB->num_dim, new_shape, GPU);
+    dim3 gridDim(CEIL_DIV(new_shape[1], BLOCKSIZE), CEIL_DIV(new_shape[0], BLOCKSIZE));
 
     dim3 blockDim(BLOCKSIZE, BLOCKSIZE / 4);
     auto start = std::chrono::high_resolution_clock::now();
@@ -78,8 +78,8 @@ int main() {
     float * aColMajor;
     cudaMalloc(&aColMajor, matA->size * sizeof(float ));
     dim3 blockDimA(BLOCKSIZE, BLOCKSIZE);
-    dim3 gridDimA(CEIL_DIV(newShape[0], BLOCKSIZE) ,
-                       CEIL_DIV(newShape[1], BLOCKSIZE));
+    dim3 gridDimA(CEIL_DIV(new_shape[0], BLOCKSIZE) ,
+                       CEIL_DIV(new_shape[1], BLOCKSIZE));
 
     // Launch kernel
     rowToColMajorKernel<<<gridDimA, blockDimA>>>(matA->elements,

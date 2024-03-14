@@ -1,7 +1,5 @@
-use std::cell::RefCell;
 use std::collections::HashMap;
 use std::rc::Rc;
-use crate::dep_tree;
 
 use crate::dep_tree::DepTree;
 
@@ -39,7 +37,7 @@ pub struct FibonacciHeap<T: FibInterface + Clone> {
     data: HashMap<u64, Rc<FibNode<T>>>,
 }
 
-struct DepTreeFibonacciHeap {
+pub struct DepTreeFibonacciHeap {
     heap: FibonacciHeap<Rc<DepTree>>,
     nodes: HashMap<u64, Rc<FibNode<Rc<DepTree>>>>, // Map from name to DepTreeNode
 }
@@ -151,22 +149,21 @@ impl<T: FibInterface + Clone> FibonacciHeap<T> {
 }
 
 impl DepTreeFibonacciHeap {
-    fn new() -> Self {
+    pub(crate) fn new() -> Self {
         DepTreeFibonacciHeap {
             heap: FibonacciHeap::new(),
             nodes: HashMap::new(),
         }
     }
 
-    fn insert(&mut self, tree: Rc<DepTree>) {
+    pub(crate) fn insert(&mut self, tree: Rc<DepTree>) {
         let node = self.heap.insert(Rc::clone(&tree));
         self.nodes.insert(tree.get_name(), Rc::clone(&node));
     }
 
-    fn update_num_dependencies(
+    pub(crate) fn update_num_dependencies(
         &mut self,
-        name: u64,
-        new_num_dependencies: usize,
+        name: u64
     ) -> Option<Rc<DepTree>> {
         let node = self.nodes.get(&name)?;
         let mut tree = &mut node.data;
@@ -175,11 +172,11 @@ impl DepTreeFibonacciHeap {
         Some(Rc::clone(&tree))
     }
 
-    fn get_min(&self) -> Option<Rc<DepTree>> {
+    pub(crate) fn get_min(&self) -> Option<Rc<DepTree>> {
         self.heap.get_min()
     }
 
-    fn extract_min(&mut self) -> Option<Rc<DepTree>> {
+    pub(crate) fn extract_min(&mut self) -> Option<Rc<DepTree>> {
         let min_tree = self.heap.extract_min()?;
         self.nodes.remove(&min_tree.get_name());
         Some(min_tree)

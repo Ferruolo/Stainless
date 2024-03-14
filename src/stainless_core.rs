@@ -4,9 +4,12 @@ use std::sync::mpsc::{Receiver, Sender};
 use std::sync::{mpsc, Arc, Mutex};
 use std::thread;
 use std::thread::JoinHandle;
+use crate::binding_interface::{create_uniform_random_mat_interface, matrix_mul_interface};
 
 use crate::classes::ThreadCommands::*;
-use crate::classes::{Operation, ThreadCommands};
+use crate::classes::{MatrixInitType, Operation, ThreadCommands};
+use crate::classes::MatrixInitType::UniformRandomMatrix;
+use crate::classes::Operation::Init;
 use crate::object::Object;
 use crate::task_scheduler::Scheduler;
 
@@ -28,19 +31,54 @@ pub(crate) struct MultiThread {
 */
 trait Executor {
     fn init(num_workers: u8) -> Self;
+    // fn build_constant_matrix();
+    // fn build_diagonal_matrix();
 
-    fn build_constant_matrix();
-    fn build_diagonal_matrix();
-    fn build_identity_matrix();
-    fn build_uniform_random_matrix();
-    fn build_matrix_from_vec();
+    ///
+    ///
+    /// # Arguments
+    ///
+    /// * `shape`:
+    /// * `left`:
+    /// * `right`:
+    /// * `forge_op`:
+    ///
+    /// returns: Arc<Mutex<Object>, Global>
+    ///
+    /// # Examples
+    ///
+    /// ```
+    ///
+    /// ```
+    fn matrix_builder(&self,
+                      shape: &Vec<u64>,
+                      left: Option<&Arc<Mutex<Object>>>,
+                      right: Option<&Arc<Mutex<Object>>>,
+                      forge_op: Operation
+    ) -> Arc<Mutex<Object>>;
+    ///
+    ///
+    /// # Arguments
+    ///
+    /// * `shape`:
+    ///
+    /// returns: ()
+    ///
+    /// # Examples
+    ///
+    /// ```
+    ///
+    /// ```
+    fn build_uniform_random_matrix(&self, shape: &Vec<u64>) -> Arc<Mutex<Object>> ;
 }
 
 
 
 
 
-impl  Executor for MultiThread {
+
+
+impl Executor for MultiThread {
     fn init(num_workers: u8) -> Self {
         let (manager, message_box) = spin_up(num_workers);
         Self {
@@ -74,15 +112,16 @@ impl  Executor for MultiThread {
         self.manager_inbox.send(Calculation(Arc::clone(&new_obj))).unwrap();
         return new_obj;
     }
-    fn build_uniform_random_matrix() {}
+    fn build_uniform_random_matrix(&self, shape: &Vec<u64>) -> Arc<Mutex<Object>> {
+        self.matrix_builder(
+            shape, None, None, Init(UniformRandomMatrix)
+        )
+    }
 
-    fn build_constant_matrix() {}
+    // fn build_constant_matrix() {}
+    //
+    // fn build_diagonal_matrix() {}
 
-    fn build_diagonal_matrix() {}
-
-    fn build_identity_matrix() {}
-
-    fn build_matrix_from_vec() {}
 
 }
 
@@ -197,9 +236,22 @@ fn perform_calculation(target: Arc<Mutex<Object>>) {
         Operation::Add => {
             todo!();
         }
-        Operation::MatMul => {
-            Arc::clone(&target.lock().unwrap().get_left().unwrap());
+        Operation::MatrixMult => unsafe {
+            let left = Arc::clone(&target.lock().unwrap().get_left().unwrap());
+            let right = Arc::clone(&target.lock().unwrap().get_left().unwrap());
+            let new_mat = matrix_mul_interface(left, right);
+            target.lock().unwrap().set_matrix(new_mat);
         }
-        Operation::Init => {}
+        Init(matType) => {
+            match matType {
+                UniformRandomMatrix => unsafe {
+                    let new_shape = target.lock().unwrap().get_shape();
+                    let new_matrix = create_uniform_random_mat_interface(new_shape);
+                    target.lock().unwrap().set_matrix(new_matrix);
+                }
+                MatrixInitType::ConstantMatrix(_) => {}
+                MatrixInitType::DiagonalMatrix(_) => {}
+            }
+        }
     }
 }
