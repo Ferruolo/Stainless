@@ -10,7 +10,7 @@ use crate::classes::{Operation, ThreadCommands};
 use crate::object::Object;
 use crate::task_scheduler::Scheduler;
 
-pub(crate) struct Executor {
+pub(crate) struct MultiThread {
     // Manager Thread, controls all other threads. All other threads
     // Live within and are managed by this thread. Holds all tasks and schedules
     // them for executions
@@ -22,8 +22,26 @@ pub(crate) struct Executor {
     name_iter: u64,
 }
 
-impl Executor {
-    pub(crate) fn init(num_workers: u8) -> Self {
+
+/*
+
+*/
+trait Executor {
+    fn init(num_workers: u8) -> Self;
+
+    fn build_constant_matrix();
+    fn build_diagonal_matrix();
+    fn build_identity_matrix();
+    fn build_uniform_random_matrix();
+    fn build_matrix_from_vec();
+}
+
+
+
+
+
+impl  Executor for MultiThread {
+    fn init(num_workers: u8) -> Self {
         let (manager, message_box) = spin_up(num_workers);
         Self {
             manager: Rc::new(manager),
@@ -56,9 +74,15 @@ impl Executor {
         self.manager_inbox.send(Calculation(Arc::clone(&new_obj))).unwrap();
         return new_obj;
     }
+    fn build_uniform_random_matrix() {}
 
+    fn build_constant_matrix() {}
 
+    fn build_diagonal_matrix() {}
 
+    fn build_identity_matrix() {}
+
+    fn build_matrix_from_vec() {}
 
 }
 

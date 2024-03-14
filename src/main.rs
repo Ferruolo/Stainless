@@ -9,11 +9,11 @@ mod dep_tree;
 mod optimizations;
 mod FibonacciQueue;
 
-use crate::stainless_core::Executor;
+use crate::stainless_core::MultiThread;
 
 
 fn main() {
-    let mut exec = Executor::init(2);
+    let mut exec = MultiThread::init(2);
     // exec.spin_up_threads(2);
     let shape = vec![2, 2];
     let a = exec.create_uniform_random_matrix(&shape);
