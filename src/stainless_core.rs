@@ -9,7 +9,7 @@ use crate::binding_interface::{create_uniform_random_mat_interface, matrix_mul_i
 use crate::classes::ThreadCommands::*;
 use crate::classes::{MatrixInitType, Operation, ThreadCommands};
 use crate::classes::MatrixInitType::UniformRandomMatrix;
-use crate::classes::Operation::Init;
+use crate::classes::Operation::{Init, MatrixMult};
 use crate::object::Object;
 use crate::task_scheduler::Scheduler;
 
@@ -29,7 +29,7 @@ pub(crate) struct MultiThread {
 /*
 
 */
-trait Executor {
+pub(crate) trait Executor {
     fn init(num_workers: u8) -> Self;
     // fn build_constant_matrix();
     // fn build_diagonal_matrix();
@@ -69,7 +69,13 @@ trait Executor {
     /// ```
     ///
     /// ```
-    fn build_uniform_random_matrix(&self, shape: &Vec<u64>) -> Arc<Mutex<Object>> ;
+    fn build_uniform_random_matrix(&self, shape: &Vec<u64>) -> Arc<Mutex<Object>>;
+
+
+    fn mat_mul(&self, left: &Arc<Mutex<Object>>, right: &Arc<Mutex<Object>>) -> Arc<Mutex<Object>>;
+
+
+    fn kill(&self);
 }
 
 
@@ -118,6 +124,29 @@ impl Executor for MultiThread {
         )
     }
 
+    fn mat_mul(&self, left: &Arc<Mutex<Object>>, right: &Arc<Mutex<Object>>) -> Arc<Mutex<Object>> {
+        let get_shape = |x: &Arc<Mutex<Object>>| {
+            x.lock().unwrap().get_shape().clone()
+        };
+
+        let left_shape = get_shape(left);
+        let right_shape = get_shape(right);
+
+        if left_shape[1] != right_shape[0] {
+            let left_name = left.lock().unwrap().get_name();
+            let right_name = right.lock().unwrap().get_name();
+            panic!("Error computing product of {} and {} - Shapes did not match", left_name, right_name);
+        }
+        
+        
+        let new_shape = vec![left_shape[0], right_shape[1]];
+        self.matrix_builder(&new_shape, Some(left), Some(right), MatrixMult)
+    }
+
+    fn kill(&self) {
+        self.manager_inbox.send(KILL).unwrap();
+    }
+
     // fn build_constant_matrix() {}
     //
     // fn build_diagonal_matrix() {}
@@ -159,9 +188,6 @@ fn spin_up(num_workers: u8) -> (JoinHandle<()>, Sender<ThreadCommands>) {
                             } else {
                                 worker_queue.push_front(address);
                             }
-                        }
-                        if scheduler.can_kill() {
-                            break;
                         }
                     }
                     // Schedule a new object for computation
