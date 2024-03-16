@@ -1,11 +1,3 @@
-use std::sync::{Arc, Mutex};
-use crate::object::Object;
-use crate::classes::{ComputationGraph, ItemLoc, Operation};
-use crate::classes::ComputationGraph::{M, NoPattern, Op};
-use crate::classes::Operation::{Add, Init, MatrixMult};
-use crate::dep_tree::DepTree;
-
-
 /*
 *  Suite of functions which use pattern matching to optimize computation order.
 *  Needs to be integrated in when I determine how

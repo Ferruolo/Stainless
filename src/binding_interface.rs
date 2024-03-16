@@ -51,7 +51,7 @@ unsafe impl Send for RustMatrix {}
 
 pub unsafe fn create_uniform_random_mat_interface(shape: &Vec<u64>) -> *mut Matrix {
     let num_dim :os::raw::c_int = shape.len() as c_int;
-    let mut c_shape = [shape[0] as c_int, shape[1] as c_int];
+    let c_shape = [shape[0] as c_int, shape[1] as c_int];
     
     
     let low: c_int = 0;

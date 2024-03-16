@@ -1,16 +1,16 @@
-use std::cmp::Ordering;
+use std::cell::RefCell;
 use std::collections::HashMap;
 use std::hash::{Hash, Hasher};
 use std::rc::Rc;
 use std::sync::{Arc, Mutex};
 use crate::classes::ItemLoc;
-use crate::fibonacci_queue::FibInterface;
+use crate::fibonacci_queue::HeapInterface;
 use crate::object::Object;
 
 
 pub(crate) struct DepTree {
     node: Arc<Mutex<Object>>,
-    children: Vec<Rc<DepTree>>,
+    children: Vec<Rc<RefCell<DepTree>>>,
     location: ItemLoc,
     height: usize,
     num_dependencies: usize,
@@ -18,12 +18,12 @@ pub(crate) struct DepTree {
 }
 
 impl DepTree {
-    pub fn init(obj: Arc<Mutex<Object>>, name_lookup: &mut HashMap<u64, Rc<DepTree>>) -> Rc<Self> {
+    pub fn init(obj: Arc<Mutex<Object>>, name_lookup: &mut HashMap<u64, Rc<RefCell<DepTree>>>) -> Rc<RefCell<Self>> {
         let name = obj.lock().unwrap().get_name();
-        let children: Vec<Rc<DepTree>> = {
+        let children: Vec<Rc<RefCell<DepTree>>> = {
             let unwrapped = &obj.lock().unwrap();
             let unwrapped_children = [unwrapped.get_right(), unwrapped.get_left()];
-            let child_names: Vec<&Rc<DepTree>> = unwrapped_children
+            let child_names: Vec<&Rc<RefCell<DepTree>>> = unwrapped_children
                 .iter()
                 .filter_map(|item| {
                     if let Some(child) = item {
@@ -36,19 +36,19 @@ impl DepTree {
                 .collect();
             child_names.iter().map(|item| Rc::clone(item)).collect()
         };
-        for mut child in children {
-            child.increment_num_dependencies();
+        for child in &children {
+            child.borrow_mut().increment_num_dependencies();
         }
-        let height = children.iter().map(|i| i.get_height()).max().unwrap_or(0) + 1;
+        let height = children.iter().map(|i| i.borrow().get_height()).max().unwrap_or(0) + 1;
         let loc = obj.lock().unwrap().get_loc();
-        return Rc::new(Self {
+        return Rc::new(RefCell::new(Self {
             node: obj,
             children,
             location: loc,
             height,
             num_dependencies: 0,
             name,
-        });
+        }));
     }
 
     pub fn get_height(&self) -> usize {
@@ -63,7 +63,7 @@ impl DepTree {
         return self.name;
     }
 
-    pub fn get_children(&self) -> &Vec<Rc<DepTree>> {
+    pub fn get_children(&self) -> &Vec<Rc<RefCell<DepTree>>> {
         return &self.children;
     }
 
@@ -88,21 +88,24 @@ impl Hash for DepTree {
 }
 
 
-impl FibInterface for Rc<DepTree> {
+impl HeapInterface for Rc<RefCell<DepTree>> {
     fn get_key(&self) -> u64 {
         todo!()
     }
 
     fn compare_items(&self, other: &Self) -> bool {
-        if self.height != other.height {
-            return self.height < other.height;
-        } else if self.num_dependencies != other.num_dependencies {
-            return self.num_dependencies > other.num_dependencies
-        } else if self.name != other.name {
-            return self.name < other.name;
+        if self.borrow().height != other.borrow().height {
+            return self.borrow().height < other.borrow().height;
+        } else if self.borrow().num_dependencies != other.borrow().num_dependencies {
+            return self.borrow().num_dependencies > other.borrow().num_dependencies
+        } else if self.borrow().name != other.borrow().name {
+            return self.borrow().name < other.borrow().name;
         } else {
             return false
         }
     }
 
+    fn decrease(&mut self) {
+        self.borrow_mut().increment_num_dependencies();
+    }
 }

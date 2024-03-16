@@ -26,16 +26,16 @@ __global__ void cuConstArrInit(float *randArray, int size, int c) {
     randArray[tid] = c;
 }
 
-__global__ void checkEqualityKernel(float *A, float*B, bool *target, int size) {
+__global__ void checkEqualityKernel(float *a, float*B, bool *target, int size) {
     int tid = blockIdx.x * blockDim.x + threadIdx.x;
     if (tid >= size) return;
-    bool res = abs(A[tid] - B[tid]) < 1e-6;
+    bool res = abs(a[tid] - B[tid]) < 1e-6;
     target[tid] = res;
 }
 
 // Functional Kernels
 __global__ void sgemm_kernel(int M, int N, int K, float alpha, float beta,
-                             float * A, float *B, float *C) {
+                             float * a, float *B, float *C) {
     //Calculate row and column
     const uint threadOffsetRow = threadIdx.y * CELLS_PER_KERNEL;
     const uint threadOffsetCol = threadIdx.x;
@@ -47,17 +47,17 @@ __global__ void sgemm_kernel(int M, int N, int K, float alpha, float beta,
 
     float * aLocalArr[CELLS_PER_KERNEL];
     #pragma unroll
-    for (int i = 0; i < CELLS_PER_KERNEL; ++i) {
-        aLocalArr[i] = A + (row + i) * K;
+    for (int _i = 0; _i < CELLS_PER_KERNEL; ++_i) {
+        aLocalArr[_i] = a + (row + _i) * K;
     }
 
     float * bLocal = B + col;
     float temp[CELLS_PER_KERNEL] = {0.0, 0.0, 0.0, 0.0};
     int cacheRowIdx = threadOffsetCol;
     int cacheColIdx = threadOffsetRow;
-    for (int i = 0; i < K; i += BLOCKSIZE) {
+    for (int _i = 0; _i < K; _i += BLOCKSIZE) {
         __syncthreads();
-        // Load up 4 cells of A cache
+        // Load up 4 cells of a cache
         #pragma unroll
         for (int j = 0; j < CELLS_PER_KERNEL; ++j) {
             aCache[threadOffsetRow + j][cacheRowIdx] = aLocalArr[j][cacheRowIdx];
@@ -90,8 +90,8 @@ __global__ void sgemm_kernel(int M, int N, int K, float alpha, float beta,
     // Set values of C using temp
 
     #pragma unroll
-    for (int i = 0; i < CELLS_PER_KERNEL; ++i) {
-        C[(row + i) * N + col] = alpha * temp[i] + beta * C[(row + i) * N + col];
+    for (int _i = 0; _i < CELLS_PER_KERNEL; ++_i) {
+        C[(row + _i) * N + col] = alpha * temp[_i] + beta * C[(row + _i) * N + col];
     }
 // TODO:
 // Double Buffer

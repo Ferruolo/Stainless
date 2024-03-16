@@ -9,21 +9,22 @@
 * and that can be done later :(
 */
 
+use std::cell::{RefCell};
 use crate::classes::ThreadCommands::{CacheMove, Calculation};
 use crate::classes::{LocationMove, ThreadCommands};
 use crate::dep_tree::DepTree;
 use crate::object::Object;
-use crate::fibonacci_queue::{DepTreeFibonacciHeap};
+use crate::fibonacci_queue::{FibHeap};
 use std::collections::{HashMap, VecDeque};
 use std::rc::Rc;
 use std::sync::{Arc, Mutex};
 
 pub(crate) struct Scheduler {
-    name_lookup: HashMap<u64, Rc<DepTree>>,
+    name_lookup: HashMap<u64, Rc<RefCell<DepTree>>>,
     // Used for O(1) lookup of children,
     //preventing circular dependency which would
     // require locking DepTrees behind a mutex
-    computation_queue: DepTreeFibonacciHeap,
+    computation_queue: FibHeap<Rc<RefCell<DepTree>>>,
     // Queue of items to be computed. Designed so items with lowest height and lowest number
     // of direct dependencies are computed first.
     // TODO: Write correctness and optimality proofs for this
@@ -38,12 +39,12 @@ pub(crate) struct Scheduler {
     // prevents pre-mature kills
 }
 
-impl Scheduler {
+impl Scheduler   {
     pub fn init() -> Self {
         // Initialize Elements
         return Self {
             name_lookup: HashMap::with_capacity(20),
-            computation_queue: DepTreeFibonacciHeap::new(),
+            computation_queue: FibHeap::init(),
             location_move_queue: Default::default(),
             terminator: false,
             num_live: 0,
@@ -58,13 +59,13 @@ impl Scheduler {
         let new_dep_tree = DepTree::init(obj, &mut self.name_lookup);
         //Add new tree into lookup table so that children can be added later
         self.name_lookup
-            .insert(new_dep_tree.get_name(), Rc::clone(&new_dep_tree));
+            .insert(new_dep_tree.borrow().get_name(), Rc::clone(&new_dep_tree));
         // increment number of dependencies all children to re-establish invariant
-        for item in new_dep_tree.get_children() {
-            self.computation_queue.update_num_dependencies(item.get_name());
+        for item in new_dep_tree.borrow().get_children() {
+            self.computation_queue.decrease_key(item.borrow().get_name());
         }
         // Queue up for computation
-        self.computation_queue.insert(new_dep_tree);
+        self.computation_queue.insert(&new_dep_tree);
 
         // Increment number of live elements
         self.num_live += 1;
@@ -84,12 +85,14 @@ impl Scheduler {
         // off the queue. If all cache movements are completed, schedule the computation
         return if let Some(next) = self.location_move_queue.pop_front() {
             Some(CacheMove(next))
-        } else if let Some(mut next) = self.computation_queue.extract_min() {
-            next.kill_children();
+        } else if let Some(next) = self.computation_queue.extract_min() {
+            let next_local = Rc::clone(&next);
+
+            next_local.borrow_mut().kill_children();
             self.num_live -= 1;
             // Remove all children from the tree
             // ensures we don't have hanging memory
-            Some(Calculation(next.get_node()))
+            Some(Calculation(next.borrow().get_node()))
 
         } else {
             None
@@ -98,7 +101,7 @@ impl Scheduler {
 
     // Takes a dependency tree and schedules the memory movements necessary to
     // compute the respective items
-    fn schedule_movements(&self, item: Rc<DepTree>) -> bool {
+    fn schedule_movements(&self, _item: Rc<RefCell<DepTree>>) -> bool {
         return false;
     }
 

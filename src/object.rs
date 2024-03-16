@@ -78,11 +78,11 @@ impl Object {
 
 impl PartialEq for Object {
     fn eq(&self, other: &Self) -> bool {
-        todo!()
+        self.name == other.name
     }
 
     fn ne(&self, other: &Self) -> bool {
-        todo!()
+        self.name == other.name
     }
 }
 

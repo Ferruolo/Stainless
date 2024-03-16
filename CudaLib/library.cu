@@ -1,6 +1,6 @@
-#include "library.cuh"
 #include "kernels.cuh"
 #include <iostream>
+#include "library.cuh"
 
 #define CEIL_DIV(M, N) (((M) + (N)-1) / (N))
 #define BLOCKSIZE 32
@@ -13,9 +13,9 @@
 int copyShape(const int &num_dim, int *oldShape, int * new_shape) {
 
     int size = 1;
-    for (int i = 0; i < num_dim; ++i){
-        new_shape[i] = oldShape[i];
-        size *= new_shape[i];
+    for (int _i = 0; _i < num_dim; ++_i){
+        new_shape[_i] = oldShape[_i];
+        size *= new_shape[_i];
     }
     return size;
 }
@@ -38,8 +38,8 @@ struct Matrix * MatrixFactory(const int *shape, int num_dum, location loc){
     Matrix * m = (Matrix *) malloc(sizeof(Matrix));
 
     int *new_shape = (int *) malloc(num_dum * sizeof(int));
-    for (int i = 0; i < num_dum; ++i){
-        new_shape[i] = shape[i];
+    for (int _i = 0; _i < num_dum; ++_i){
+        new_shape[_i] = shape[_i];
     }
 
     //Only supports 2-dimensional at the moment
@@ -84,9 +84,9 @@ struct Matrix *CreateZeroMatrix(int num_dim, const int *shape, location loc) {
 void printMatrix(const struct Matrix *m) {
     float *temp = (float *) malloc(m->size * sizeof(float));
     cudaMemcpy(temp, m->elements, m->size * sizeof(float), cudaMemcpyDeviceToHost);
-    for (int i = 0; i < m->shape[0]; ++i){
+    for (int _i = 0; _i < m->shape[0]; ++_i){
         for (int j = 0; j < m->shape[1]; ++j) {
-            printf("%.2f ", temp[i * m->shape[1] + j]);
+            printf("%.2f ", temp[_i * m->shape[1] + j]);
         }
         printf("\n");
     }
@@ -94,12 +94,12 @@ void printMatrix(const struct Matrix *m) {
     free(temp);
 }
 
-int checkMatrixEquality(const Matrix *m1, const Matrix *m2) {
+int checkMatrixEquality(const struct Matrix *m1, const struct Matrix *m2) {
     if (m1->num_dim != m2->num_dim) {
         return false;
     }
-    for (int i = 0; i < m1->num_dim; ++i) {
-        if (m1->shape[i] != m2->shape[i]) return false;
+    for (int _i = 0; _i < m1->num_dim; ++_i) {
+        if (m1->shape[_i] != m2->shape[_i]) return false;
     }
     bool * equalityChecker;
     cudaMallocManaged(&equalityChecker, sizeof(bool) * m1->size);
@@ -112,9 +112,9 @@ int checkMatrixEquality(const Matrix *m1, const Matrix *m2) {
                                                m1->size);
 
     cudaDeviceSynchronize();
-    for (int i = 0; i < m1->size; ++i) {
-        if (!equalityChecker[i]) {
-            printf("issue at %d\n", i);
+    for (int _i = 0; _i < m1->size; ++_i) {
+        if (!equalityChecker[_i]) {
+            printf("issue at %d\n", _i);
             cudaFree(equalityChecker);
             return false;
         }

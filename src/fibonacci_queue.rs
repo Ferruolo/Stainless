@@ -1,184 +1,179 @@
-use std::collections::HashMap;
+/*
+* Custom Implementation of Fibonacci Heap
+* Note: This can (and should) be redone to be totally functional 
+*/
+
+use std::cell::RefCell;
+use std::cmp::{max};
+use std::collections::{HashMap, VecDeque};
+use std::mem::swap;
 use std::rc::Rc;
 
-use crate::dep_tree::DepTree;
-
-pub trait FibInterface {
+pub(crate) trait HeapInterface {
     fn get_key(&self) -> u64;
     fn compare_items(&self, other: &Self) -> bool;
+
+    fn decrease(&mut self);
 }
 
-struct FibNode<T: Clone> {
-    data: T,
-    parent: Option<Rc<FibNode<T>>>,
-    child: Option<Rc<FibNode<T>>>,
-    left_sibling: Option<Rc<FibNode<T>>>,
-    right_sibling: Option<Rc<FibNode<T>>>,
+struct HeapNode<T: HeapInterface + Clone> {
+    datum: T,
+    children: Vec<Rc<RefCell<HeapNode<T>>>>,
     degree: usize,
-    mark: bool,
+    mark: bool
 }
 
-impl<T: Clone> FibNode<T> {
-    fn new(data: T) -> Rc<Self> {
-        Rc::new(FibNode {
-            data,
-            parent: None,
-            child: None,
-            left_sibling: (None),
-            right_sibling: (None),
-            degree: (0),
+impl<T: HeapInterface + Clone> HeapNode<T> {
+    pub fn push_children(&mut self, node: Rc<RefCell<HeapNode<T>>>) {
+        self.children.push(Rc::from(node));
+    }
+
+    pub fn decrease(&mut self){
+        self.datum.decrease();
+    }
+}
+
+
+impl<T: HeapInterface + Clone> HeapNode<T> {
+    pub fn init(datum: &T) -> Rc<RefCell<HeapNode<T>>> {
+        return Rc::new(RefCell::new(Self {
+            datum: datum.clone(),
+            children: Vec::new(),
+            degree: 0,
             mark: false,
-        })
+        }))
+    }
+
+    pub fn compare(&self, other: &Self) -> bool {
+        let other_datum = other.datum.clone();
+        self.datum.compare_items(&other_datum)
+    }
+
+    pub fn get_children(&self) -> &Vec<Rc<RefCell<HeapNode<T>>>> {
+        return &self.children;
     }
 }
 
-pub struct FibonacciHeap<T: FibInterface + Clone> {
-    min: Option<Rc<FibNode<T>>>,
-    data: HashMap<u64, Rc<FibNode<T>>>,
+
+
+pub struct FibHeap<T: HeapInterface + Clone> {
+    root_list: VecDeque<Rc<RefCell<HeapNode<T>>>>,
+    max_deg: usize,
+    lookup: HashMap<u64, Rc<RefCell<HeapNode<T>>>>
 }
 
-pub struct DepTreeFibonacciHeap {
-    heap: FibonacciHeap<Rc<DepTree>>,
-    nodes: HashMap<u64, Rc<FibNode<Rc<DepTree>>>>, // Map from name to DepTreeNode
-}
-
-impl<T: FibInterface + Clone> FibonacciHeap<T> {
-    pub fn new() -> Self {
-        FibonacciHeap {
-            min: (None),
-            data: HashMap::new(),
+impl<T: HeapInterface + Clone> FibHeap <T> {
+    pub fn init() -> Self {
+        return Self {
+            root_list: VecDeque::new(),
+            max_deg: 0,
+            lookup: HashMap::with_capacity(20)
         }
     }
 
-    pub fn insert(&mut self, data: T) -> Rc<FibNode<T>> {
-        let node = FibNode::new(data);
-        self.data.insert(data.get_key(), Rc::clone(&node));
-
-        if self.min.is_none() {
-            self.min.replace(Rc::clone(&node));
+    pub fn insert(&mut self, new_item: &T) {
+        let node = HeapNode::init(new_item);
+        let node_ref = node.clone();
+        if  self.root_list.is_empty() || node.borrow().compare(&self.root_list.front().unwrap().borrow()) {
+            self.root_list.push_front(node);
         } else {
-            self.union_root_lists(node);
+            self.root_list.pop_back();
         }
 
-        Rc::clone(&node)
-    }
-
-    pub fn get_min(&self) -> Option<T> {
-        match &self.min {
-            None => {None}
-            Some(a) => {
-                Some(a.data.clone())
-            }
-        }
+        self.lookup.insert(new_item.get_key(), node_ref);
     }
 
     pub fn extract_min(&mut self) -> Option<T> {
-        let mut min_node = self.min.take()?;
-        let mut child = min_node.child.take();
+        let datum = {
+            let min_item = match self.root_list.pop_back() {
+                None => { return None; }
+                Some(node) => { node }
+            };
+            let datum = min_item.borrow().datum.clone();
+            let mut children = vec![];
+            swap(&mut min_item.borrow_mut().children, &mut children);
 
-        while let Some(child_node) = child {
-            let next_child = child_node
-                .right_sibling
-                .as_ref()
-                .map(|n| Rc::clone(n));
-            self.union_root_lists(Rc::clone(&child_node));
-            child = next_child;
-        }
+            while !children.is_empty() {
+                let item = children.pop().unwrap();
+                self.root_list.push_back(item);
+            }
+            self.consolidate();
+            self.lookup.remove(&min_item.borrow().datum.get_key());
+            datum
+        };
 
-        let min_data = min_node.data.clone();
-        self.data.remove(&min_data.get_key());
-
-        if let Some(new_min) = self.find_new_min() {
-            self.min.replace(new_min);
-        }
-
-        Some(min_data)
+        return Some(datum);
     }
 
-    fn find_new_min(&self) -> Option<Rc<FibNode<T>>> {
-        let mut min_node: Option<Rc<FibNode<T>>> = None;
-        for node in self.data.values() {
-            if let Some(ref current_min) = min_node {
-                if node.data.compare_items(&current_min.data) {
-                    min_node = Some(Rc::clone(node));
+    fn consolidate(&mut self) {
+        let max_degree: usize = self.max_deg;
+
+        let mut a: Vec<Option<Rc<RefCell<HeapNode<T>>>>> = Vec::new();
+        for _i in 0..max_degree {
+            a.push(None);
+        }
+        while let Some(mut node) = self.root_list.pop_front() {
+            let mut d = node.borrow().degree;
+            while let Some(mut other) = a[d].clone() {
+                if other.borrow().compare(&node.borrow()) {
+                    swap(&mut node, &mut other);
                 }
+                self.heap_link(&mut other, &mut node);
+                a[d] = None;
+                d = d + 1;
+            }
+            a[d] = Some(node.clone());
+        }
+        'reinsert_items: while let Some(node) = a.pop() {
+            let node = match node {
+                None => {continue 'reinsert_items }
+                Some(i) => {i}
+            };
+
+            if !self.root_list.is_empty() || node.borrow().compare(&self.root_list.front().unwrap().borrow()) {
+                self.root_list.push_front(node);
             } else {
-                min_node = Some(Rc::clone(node));
+                self.root_list.push_back(node);
             }
         }
-        min_node
     }
 
-    fn union_root_lists(&mut self, node: Rc<FibNode<T>>) {
-        let mut current = self.min.take();
-        self.min.replace(Rc::clone(&node));
 
-        let mut node_ref = Some(Rc::clone(&node));
-        let mut current_ref = current.as_ref();
-
-        loop {
-            let next_node = node_ref
-                .as_ref()
-                .and_then(|n| n.right_sibling.as_ref().cloned());
-            let next_current = current_ref
-                .as_ref()
-                .and_then(|n| n.right_sibling.as_ref().cloned());
-
-            if let Some(n) = next_node {
-                node_ref = Some(n);
-            } else {
-                break;
+    fn heap_link(&mut self, y: &mut Rc<RefCell<HeapNode<T>>>, x: &Rc<RefCell<HeapNode<T>>>) {
+        let mut popped_ref = {
+            let back = self.root_list.pop_back();
+            match back {
+                None => {return;}
+                Some(back) => {back}
             }
+        };
+        swap(y, &mut popped_ref);
+        x.borrow_mut().degree += 1;
+        self.max_deg = max(x.borrow().degree, self.max_deg);
+        popped_ref.borrow_mut().mark = false;
+        x.borrow_mut().push_children(popped_ref);
+    }
 
-            if let Some(c) = next_current {
-                current_ref = Some(&c);
-            } else {
-                break;
+    pub fn decrease_key(&self, k: u64) {
+        let node: Rc<RefCell<HeapNode<T>>> = match self.lookup.get(&k) {
+            None => {return;}
+            Some(i) => {i.clone() }
+        };
+        node.borrow_mut().decrease();
+
+        for other in &node.borrow_mut().children {
+            if other.borrow().compare(&node.borrow()) {
+                swap(&mut node.borrow_mut().datum, &mut other.borrow_mut().datum)
             }
         }
+    }
 
-        if let (Some(node_ref), Some(current_ref)) = (node_ref, current_ref) {
-            node_ref
-                .right_sibling
-                .replace(Rc::clone(&current_ref));
-            current_ref
-                .right_sibling
-                .replace(Rc::clone(&node_ref));
+    pub fn get_min(&self) -> Option<T>
+    {
+        match self.root_list.front() {
+            None => {None}
+            Some(node) => {Some(node.borrow().datum.clone())}
         }
     }
 }
 
-impl DepTreeFibonacciHeap {
-    pub(crate) fn new() -> Self {
-        DepTreeFibonacciHeap {
-            heap: FibonacciHeap::new(),
-            nodes: HashMap::new(),
-        }
-    }
-
-    pub(crate) fn insert(&mut self, tree: Rc<DepTree>) {
-        let node = self.heap.insert(Rc::clone(&tree));
-        self.nodes.insert(tree.get_name(), Rc::clone(&node));
-    }
-
-    pub(crate) fn update_num_dependencies(
-        &mut self,
-        name: u64
-    ) -> Option<Rc<DepTree>> {
-        let node = self.nodes.get(&name)?;
-        let mut tree = &mut node.data;
-
-        tree.increment_num_dependencies();
-        Some(Rc::clone(&tree))
-    }
-
-    pub(crate) fn get_min(&self) -> Option<Rc<DepTree>> {
-        self.heap.get_min()
-    }
-
-    pub(crate) fn extract_min(&mut self) -> Option<Rc<DepTree>> {
-        let min_tree = self.heap.extract_min()?;
-        self.nodes.remove(&min_tree.get_name());
-        Some(min_tree)
-    }
-}

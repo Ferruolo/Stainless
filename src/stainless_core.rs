@@ -137,8 +137,8 @@ impl Executor for MultiThread {
             let right_name = right.lock().unwrap().get_name();
             panic!("Error computing product of {} and {} - Shapes did not match", left_name, right_name);
         }
-        
-        
+
+
         let new_shape = vec![left_shape[0], right_shape[1]];
         self.matrix_builder(&new_shape, Some(left), Some(right), MatrixMult)
     }
@@ -159,6 +159,7 @@ impl Executor for MultiThread {
 fn spin_up(num_workers: u8) -> (JoinHandle<()>, Sender<ThreadCommands>) {
     // Define the communicate channel
     let (sender, receiver): (Sender<ThreadCommands>, Receiver<ThreadCommands>) = mpsc::channel();
+    let ret_sender = sender.clone();
     return (
         thread::spawn(move || {
             // initialize scheduler and workers
@@ -207,7 +208,7 @@ fn spin_up(num_workers: u8) -> (JoinHandle<()>, Sender<ThreadCommands>) {
 
             kill_workers(workers);
         }),
-        sender,
+        ret_sender,
     );
 }
 
@@ -224,6 +225,7 @@ fn initialize_workers(
     for _i in 0..num_workers {
         // Define chanel for worker
         let (tx, rx): (Sender<ThreadCommands>, Receiver<ThreadCommands>) = mpsc::channel();
+        let manager_address_local = manager_address.clone();
         workers.push(thread::spawn(move || loop {
             // Read in new message from manager
             match rx.recv().unwrap() {
@@ -238,7 +240,7 @@ fn initialize_workers(
                     continue;
                 }
             }
-            manager_address.send(FREE(tx.clone())).unwrap()
+            manager_address_local.send(FREE(tx.clone())).unwrap()
         }))
     }
     return workers;
@@ -271,8 +273,10 @@ fn perform_calculation(target: Arc<Mutex<Object>>) {
         Init(matType) => {
             match matType {
                 UniformRandomMatrix => unsafe {
-                    let new_shape = target.lock().unwrap().get_shape();
-                    let new_matrix = create_uniform_random_mat_interface(new_shape);
+                    let new_shape = {
+                        target.lock().unwrap().get_shape().clone()
+                    };
+                    let new_matrix = create_uniform_random_mat_interface(&new_shape);
                     target.lock().unwrap().set_matrix(new_matrix);
                 }
                 MatrixInitType::ConstantMatrix(_) => {}
