@@ -1,18 +1,19 @@
 /*
 * Custom Implementation of Fibonacci Heap
-* Note: This can (and should) be redone to be totally functional 
+* Note: This can (and should) be redone to be totally functional
+* This is an Absolute Mess
 */
 
 use std::cell::RefCell;
-use std::cmp::{max};
+use std::cmp::max;
 use std::collections::{HashMap, VecDeque};
-use std::mem::swap;
+use std::mem::{swap};
 use std::rc::Rc;
 
 pub(crate) trait HeapInterface {
     fn get_key(&self) -> u64;
     fn compare_items(&self, other: &Self) -> bool;
-
+    fn no_dependencies_remaining(&self) -> bool;
     fn decrease(&mut self);
 }
 
@@ -20,7 +21,7 @@ struct HeapNode<T: HeapInterface + Clone> {
     datum: T,
     children: Vec<Rc<RefCell<HeapNode<T>>>>,
     degree: usize,
-    mark: bool
+    mark: bool,
 }
 
 impl<T: HeapInterface + Clone> HeapNode<T> {
@@ -28,11 +29,14 @@ impl<T: HeapInterface + Clone> HeapNode<T> {
         self.children.push(Rc::from(node));
     }
 
-    pub fn decrease(&mut self){
+    pub fn decrease(&mut self) {
         self.datum.decrease();
     }
-}
 
+    pub fn no_deps(&self) -> bool {
+        return self.datum.no_dependencies_remaining();
+    }
+}
 
 impl<T: HeapInterface + Clone> HeapNode<T> {
     pub fn init(datum: &T) -> Rc<RefCell<HeapNode<T>>> {
@@ -41,7 +45,7 @@ impl<T: HeapInterface + Clone> HeapNode<T> {
             children: Vec::new(),
             degree: 0,
             mark: false,
-        }))
+        }));
     }
 
     pub fn compare(&self, other: &Self) -> bool {
@@ -54,27 +58,29 @@ impl<T: HeapInterface + Clone> HeapNode<T> {
     }
 }
 
-
-
 pub struct FibHeap<T: HeapInterface + Clone> {
     root_list: VecDeque<Rc<RefCell<HeapNode<T>>>>,
     max_deg: usize,
-    lookup: HashMap<u64, Rc<RefCell<HeapNode<T>>>>
+    lookup: HashMap<u64, Rc<RefCell<HeapNode<T>>>>,
 }
 
-impl<T: HeapInterface + Clone> FibHeap <T> {
+impl<T: HeapInterface + Clone> FibHeap<T> {
     pub fn init() -> Self {
         return Self {
             root_list: VecDeque::new(),
             max_deg: 0,
-            lookup: HashMap::with_capacity(20)
-        }
+            lookup: HashMap::with_capacity(20),
+        };
     }
 
     pub fn insert(&mut self, new_item: &T) {
         let node = HeapNode::init(new_item);
         let node_ref = node.clone();
-        if  self.root_list.is_empty() || node.borrow().compare(&self.root_list.front().unwrap().borrow()) {
+        if self.root_list.is_empty()
+            || node
+                .borrow()
+                .compare(&self.root_list.front().unwrap().borrow())
+        {
             self.root_list.push_front(node);
         } else {
             self.root_list.pop_back();
@@ -84,11 +90,41 @@ impl<T: HeapInterface + Clone> FibHeap <T> {
     }
 
     pub fn extract_min(&mut self) -> Option<T> {
+
+
+
         let datum = {
-            let min_item = match self.root_list.pop_back() {
-                None => { return None; }
-                Some(node) => { node }
+            let min_item = {
+                let mut selected = None;
+                let mut storage = Vec::new();
+
+                while selected.is_none() && !self.root_list.is_empty(){
+                    let item = match self.root_list.pop_front() {
+                        None => {
+                            println!("Unable to release items");
+                            return None
+                        }
+                        Some(item) => {item}
+                    };
+
+                    if item.borrow().no_deps() {
+                        selected = Some(item)
+                    } else {
+                        storage.push(item)
+                    }
+                }
+                while let Some(front) = storage.pop() {
+                    self.root_list.push_front(front);
+                }
+                match selected {
+                    None => {
+                        println!("Unable to release items");
+                        return None
+                    }
+                    Some(item) => {item}
+                }
             };
+
             let datum = min_item.borrow().datum.clone();
             let mut children = vec![];
             swap(&mut min_item.borrow_mut().children, &mut children);
@@ -99,6 +135,11 @@ impl<T: HeapInterface + Clone> FibHeap <T> {
             }
             self.consolidate();
             self.lookup.remove(&min_item.borrow().datum.get_key());
+            println!(
+                "Releasing {} from the queue with status no_dep = {}",
+                min_item.borrow().datum.get_key(),
+                min_item.borrow().no_deps()
+            );
             datum
         };
 
@@ -126,11 +167,15 @@ impl<T: HeapInterface + Clone> FibHeap <T> {
         }
         'reinsert_items: while let Some(node) = a.pop() {
             let node = match node {
-                None => {continue 'reinsert_items }
-                Some(i) => {i}
+                None => continue 'reinsert_items,
+                Some(i) => i,
             };
 
-            if !self.root_list.is_empty() || node.borrow().compare(&self.root_list.front().unwrap().borrow()) {
+            if !self.root_list.is_empty()
+                || node
+                    .borrow()
+                    .compare(&self.root_list.front().unwrap().borrow())
+            {
                 self.root_list.push_front(node);
             } else {
                 self.root_list.push_back(node);
@@ -138,13 +183,14 @@ impl<T: HeapInterface + Clone> FibHeap <T> {
         }
     }
 
-
     fn heap_link(&mut self, y: &mut Rc<RefCell<HeapNode<T>>>, x: &Rc<RefCell<HeapNode<T>>>) {
         let mut popped_ref = {
             let back = self.root_list.pop_back();
             match back {
-                None => {return;}
-                Some(back) => {back}
+                None => {
+                    return;
+                }
+                Some(back) => back,
             }
         };
         swap(y, &mut popped_ref);
@@ -156,8 +202,10 @@ impl<T: HeapInterface + Clone> FibHeap <T> {
 
     pub fn decrease_key(&self, k: u64) {
         let node: Rc<RefCell<HeapNode<T>>> = match self.lookup.get(&k) {
-            None => {return;}
-            Some(i) => {i.clone() }
+            None => {
+                return;
+            }
+            Some(i) => i.clone(),
         };
         node.borrow_mut().decrease();
 
@@ -168,12 +216,10 @@ impl<T: HeapInterface + Clone> FibHeap <T> {
         }
     }
 
-    pub fn get_min(&self) -> Option<T>
-    {
+    pub fn get_min(&self) -> Option<T> {
         match self.root_list.front() {
-            None => {None}
-            Some(node) => {Some(node.borrow().datum.clone())}
+            None => None,
+            Some(node) => Some(node.borrow().datum.clone()),
         }
     }
 }
-

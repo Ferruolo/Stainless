@@ -60,12 +60,15 @@ struct Matrix * MatrixFactory(const int *shape, int num_dum, location loc){
 
 
 Matrix * CreateUniformRandomMatrix(const int * shape, int num_dim, location loc, int min_val, int max_val) {
+    printf("CUDA - Called");
     Matrix * m = MatrixFactory(shape, num_dim, loc);
     dim3 gridDim(CEIL_DIV(m->size, BLOCKSIZE * BLOCKSIZE));
     int blockThreads = min(BLOCKSIZE*BLOCKSIZE, m->size);
     dim3 blockDim(blockThreads);
 
     cuRandArrInit<<<gridDim, blockDim>>>(m->elements, min_val, max_val, m->size);
+    cudaDeviceSynchronize();
+    printf("Computed - CUDA");
     return m;
 }
 
