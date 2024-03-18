@@ -17,7 +17,8 @@ pub(crate) struct DepTree {
     height: usize,
     num_dependencies: usize,
     name: u64,
-    parent: Option<Arc<Mutex<DepTree>>>
+    parents: Vec<Arc<Mutex<DepTree>>>,
+    num_live_deps: usize,
 }
 
 impl DepTree {
@@ -52,7 +53,8 @@ impl DepTree {
             height,
             num_dependencies: 0,
             name,
-            parent: None
+            parents: Vec::new(),
+            num_live_deps: children_clone.len()
         }));
 
         for child in children_clone {
@@ -83,24 +85,21 @@ impl DepTree {
 
     pub fn detatch(&mut self) {
         self.children.clear();
-        let mut parent = None;
-        swap(&mut parent, &mut self.parent);
-
-        if let Some(parent) = parent {
+        let mut parents = Vec::new();
+        swap(&mut parents, &mut self.parents);
+        for parent in parents {
+            let parent_name = parent.lock().unwrap().get_name();
+            println!("Releasing {} from {}", self.name, parent_name);
             parent.lock().unwrap().detatch_child(self.name);
         }
+        self.parents.clear();
     }
     pub fn detatch_child(&mut self, name: u64) {
         println!("{} detached from {}", name, self.name);
-        for i in 0..self.children.len() {
-            if self.children[i].lock().unwrap().get_name() == name {
-                self.children.remove(i);
-                break
-            }
-        }
+        self.num_live_deps -= 1
     }
     pub fn add_parent(&mut self, parent: &Arc<Mutex<DepTree>>) {
-        self.parent = Some(parent.clone());
+        self.parents.push(Arc::clone(parent))
     }
 
 
@@ -147,7 +146,7 @@ impl HeapInterface for Arc<Mutex<DepTree>> {
     }
 
     fn no_dependencies_remaining(&self) -> bool {
-        self.lock().unwrap().children.is_empty()
+        self.lock().unwrap().num_live_deps == 0
     }
 
     fn decrease(&mut self) {

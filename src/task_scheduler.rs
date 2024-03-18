@@ -65,6 +65,7 @@ impl Scheduler {
             self.computation_queue
                 .decrease_key(item.lock().unwrap().get_name());
         }
+        
         // Queue up for computation
         self.computation_queue.insert(&new_dep_tree);
         println!("Scheduled {}", name);

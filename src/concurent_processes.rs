@@ -31,7 +31,7 @@ pub fn spin_up(
         thread::spawn(move || {
             // initialize scheduler and workers
             let mut scheduler = Scheduler::init();
-            let workers = initialize_workers(num_workers, &sender);
+            let workers = initialize_workers(num_workers, sender.clone());
             let mut worker_queue: VecDeque<Sender<ThreadCommands>> = VecDeque::new();
             home_send.send(Some(true)).unwrap();
             loop {
@@ -100,7 +100,7 @@ pub fn spin_up(
 #[inline]
 fn initialize_workers(
     num_workers: u8,
-    manager_address: &Sender<ThreadCommands>,
+    manager_address: Sender<ThreadCommands>,
 ) -> Vec<JoinHandle<()>> {
     let mut workers = Vec::new();
     for _i in 0..num_workers {
@@ -123,7 +123,9 @@ fn initialize_workers(
                         continue 'worker_thread;
                     }
                 }
-                manager_address_local.send(FREE(tx.clone())).unwrap()
+
+                manager_address_local.send(FREE(tx.clone())).unwrap();
+                println!("Thread Free'd - Requesting more work");
             }
         }))
     }
