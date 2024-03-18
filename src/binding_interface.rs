@@ -1,10 +1,8 @@
 use std::os;
 use std::os::raw::c_int;
-use std::sync::{Arc, Mutex};
-
 use crate::binding_interface::RustMatType::{ComputationPending, GpuMatrix};
 use crate::bindings::{location_GPU, printMatrix, CreateUniformRandomMatrix, MatMul, Matrix};
-use crate::object::Object;
+use crate::object::{Object, ObjectInterface};
 
 pub enum RustMatType {
     GpuMatrix,
@@ -53,19 +51,19 @@ pub unsafe fn create_uniform_random_mat_interface(shape: &Vec<u64>) -> *mut Matr
 }
 
 pub unsafe fn matrix_mul_interface(
-    left: Arc<Mutex<Object>>,
-    right: Arc<Mutex<Object>>,
+    left: Object,
+    right: Object,
 ) -> *mut Matrix {
     println!("**** Sending to GPU mat");
-    let l_mat = left.lock().unwrap().get_executable();
-    let r_mat = right.lock().unwrap().get_executable();
+    let l_mat = left.get_executable();
+    let r_mat = right.get_executable();
     println!("*******Cuda MatMul");
     let new_mat = MatMul(l_mat, r_mat);
     return new_mat;
 }
 
-pub unsafe fn print_matrix_interface(mat: Arc<Mutex<Object>>) {
-    let print_mat = mat.lock().unwrap().get_executable();
+pub unsafe fn print_matrix_interface(mat: Object) {
+    let print_mat = mat.get_executable();
     println!("*******Print Matrix");
     printMatrix(print_mat);
 }

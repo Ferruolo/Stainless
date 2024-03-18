@@ -16,9 +16,9 @@ LIB_HDRS = $(wildcard $(SRC_DIR)/*.cuh) $(wildcard $(SRC_DIR)/*.h)
 LIB_OBJS = $(patsubst $(SRC_DIR)/%.cu,$(BUILD_DIR)/%.o,$(LIB_SRCS))
 LIB_NAME = $(LIB_DIR)/libCuda.so
 
-PROFILE_SRC = profile.cu
-PROFILE_OBJ = $(BUILD_DIR)/profile.o
-PROFILE_BIN = $(BIN_DIR)/profile
+#PROFILE_SRC = profile.cu
+#PROFILE_OBJ = $(BUILD_DIR)/profile.o
+#PROFILE_BIN = $(BIN_DIR)/profile
 
 # Libraries
 LIBS = -lcublas

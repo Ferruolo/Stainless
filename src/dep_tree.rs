@@ -7,11 +7,11 @@ use std::sync::{Arc, Mutex};
 use libc::pthread_mutexattr_t;
 use crate::classes::ItemLoc;
 use crate::fibonacci_queue::HeapInterface;
-use crate::object::Object;
+use crate::object::ObjectContents;
 
 
 pub(crate) struct DepTree {
-    node: Arc<Mutex<Object>>,
+    node: Arc<Mutex<ObjectContents>>,
     children: Vec<Arc<Mutex<DepTree>>>,
     location: ItemLoc,
     height: usize,
@@ -22,7 +22,7 @@ pub(crate) struct DepTree {
 }
 
 impl DepTree {
-    pub fn init(obj: Arc<Mutex<Object>>, name_lookup: &mut HashMap<u64, Arc<Mutex<DepTree>>>) -> Arc<Mutex<Self>> {
+    pub fn init(obj: Arc<Mutex<ObjectContents>>, name_lookup: &mut HashMap<u64, Arc<Mutex<DepTree>>>) -> Arc<Mutex<Self>> {
         let name = obj.lock().unwrap().get_name();
         let children: Vec<Arc<Mutex<DepTree>>> = {
             let unwrapped = &obj.lock().unwrap();
@@ -103,7 +103,7 @@ impl DepTree {
     }
 
 
-    pub fn get_node(&self) -> Arc<Mutex<Object>> {
+    pub fn get_node(&self) -> Arc<Mutex<ObjectContents>> {
         return Arc::clone(&self.node);
     }
 }

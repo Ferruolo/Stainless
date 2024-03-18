@@ -2,10 +2,10 @@ use crate::binding_interface::{
     create_uniform_random_mat_interface, matrix_mul_interface, print_matrix_interface,
 };
 use crate::classes::MatrixInitType::UniformRandomMatrix;
-use crate::classes::Operation::{Init, MatrixMult, PrintMatrix};
+use crate::classes::Operation::{Init, MatrixMult};
 use crate::classes::ThreadCommands::{CacheMove, ComputeObject, NullType, FREE, KILL};
 use crate::classes::{MatrixInitType, Operation, ThreadCommands};
-use crate::object::Object;
+use crate::object::{Object, ObjectContents, ObjectInterface};
 use crate::task_scheduler::Scheduler;
 use mpsc::channel;
 use std::collections::VecDeque;
@@ -17,7 +17,7 @@ use std::thread::JoinHandle;
 // Spins up and defines the manager
 #[inline]
 pub fn spin_up(
-    num_workers: u8,
+    num_workers: usize,
 ) -> (
     JoinHandle<()>,
     Sender<ThreadCommands>,
@@ -35,11 +35,9 @@ pub fn spin_up(
             let mut worker_queue: VecDeque<Sender<ThreadCommands>> = VecDeque::new();
             home_send.send(Some(true)).unwrap();
             loop {
-                if scheduler.can_kill() {
+                if scheduler.can_kill() && worker_queue.len() == num_workers {
                     break;
                 }
-                println!("Worker que len: {}", worker_queue.len());
-
                 if !worker_queue.is_empty() {
                     if let Some(cmd) = scheduler.get_next() {
                         if let Some(worker) = worker_queue.pop_front() {
@@ -48,8 +46,9 @@ pub fn spin_up(
                     }
                 }
 
+
                 // Read next instruction
-                match receiver.recv().unwrap(){
+                match receiver.try_recv().unwrap_or(NullType) {
                     // FREE -> A thread has been freed. Either schedule item
                     // or add the worker to the queue
                     FREE(address) => match scheduler.get_next() {
@@ -59,6 +58,9 @@ pub fn spin_up(
                     // Kill all threads
                     KILL => {
                         println!("Kill;");
+                        if scheduler.can_kill() {
+                            break;
+                        }
                         scheduler.schedule_shutdown();
                     }
                     // If there's nothing to do, lets do some of our work on
@@ -66,13 +68,12 @@ pub fn spin_up(
                     NullType => {}
                     // Schedule a new object for computation
                     ThreadCommands::Calculation(obj) => {
-                        let obj_name = obj.lock().unwrap().get_name();
-                        let forge_op = obj.lock().unwrap().get_op();
+                        let obj_name = obj.get_name();
+                        let forge_op = obj.get_op();
                         let forge_op_text = match forge_op {
                             Operation::Add => "add",
                             MatrixMult => "MatMul",
                             Init(_) => "Init",
-                            PrintMatrix => "Print",
                         };
 
                         println!(
@@ -86,8 +87,8 @@ pub fn spin_up(
                     _ => continue,
                 }
             }
-
-            kill_workers(workers);
+            println!("Processes_killed");
+            kill_workers(workers, worker_queue);
         }),
         ret_sender,
         home_recieve,
@@ -99,11 +100,11 @@ pub fn spin_up(
 */
 #[inline]
 fn initialize_workers(
-    num_workers: u8,
+    num_workers: usize,
     manager_address: Sender<ThreadCommands>,
 ) -> Vec<JoinHandle<()>> {
     let mut workers = Vec::new();
-    for _i in 0..num_workers {
+    for i in 0..num_workers {
         // Define chanel for worker
         let (tx, rx): (Sender<ThreadCommands>, Receiver<ThreadCommands>) = channel();
         let manager_address_local = manager_address.clone();
@@ -114,11 +115,13 @@ fn initialize_workers(
                 match rx.recv().unwrap() {
                     // TODO: Cache Move
                     CacheMove(_) => {}
-                    ComputeObject(obj, deptree) => {
+                    ComputeObject(obj) => {
                         perform_calculation(obj);
-                        deptree.lock().unwrap().detatch();
                     }
                     KILL => break 'worker_thread,
+                    ThreadCommands::PrintMatrix(obj) => unsafe {
+                        print_matrix_interface(obj);
+                    }
                     _ => {
                         continue 'worker_thread;
                     }
@@ -127,6 +130,7 @@ fn initialize_workers(
                 manager_address_local.send(FREE(tx.clone())).unwrap();
                 println!("Thread Free'd - Requesting more work");
             }
+            println!("thread {} Killed", i);
         }))
     }
     return workers;
@@ -135,7 +139,12 @@ fn initialize_workers(
 /*
 *   Cleans up workers
 */
-fn kill_workers(workers: Vec<JoinHandle<()>>) {
+fn kill_workers(workers: Vec<JoinHandle<()>>, worker_queue: VecDeque<Sender<ThreadCommands>>) {
+    println!("Workers in queue at death: {}", worker_queue.len());
+
+    for worker in worker_queue {
+        worker.send(KILL).unwrap();
+    }
     for worker in workers {
         worker.join().unwrap();
     }
@@ -144,36 +153,36 @@ fn kill_workers(workers: Vec<JoinHandle<()>>) {
     Performs calculations
 */
 #[inline]
-fn perform_calculation(target: Arc<Mutex<Object>>) {
-    let forge_op = target.lock().unwrap().get_op();
+fn perform_calculation(mut target: Object) {
+    let forge_op = target.get_op();
     match forge_op {
         Operation::Add => {
             todo!();
         }
         MatrixMult => unsafe {
-            let left = Arc::clone(&target.lock().unwrap().get_left().unwrap());
-            let right = Arc::clone(&target.lock().unwrap().get_left().unwrap());
+            let left = target.get_left().unwrap().clone();
+            let right = target.get_right().unwrap().clone();
             let new_mat = matrix_mul_interface(left, right);
-            target.lock().unwrap().set_matrix(new_mat);
+            target.set_matrix(new_mat);
         },
         Init(mat_type) => match mat_type {
             UniformRandomMatrix => unsafe {
                 // println!("Calculation call reached");
-                let new_shape = { target.lock().unwrap().get_shape().clone() };
+                let new_shape = { target.get_shape().clone() };
                 let new_matrix = create_uniform_random_mat_interface(&new_shape);
-                target.lock().unwrap().set_matrix(new_matrix);
-                let name = target.lock().unwrap().get_name();
+                target.set_matrix(new_matrix);
+                let name = target.get_name();
                 println!("Successfully initiated {}", name);
             },
             MatrixInitType::ConstantMatrix(_) => {}
             MatrixInitType::DiagonalMatrix(_) => {}
         },
-        PrintMatrix => unsafe {
-            let mat = match target.lock().unwrap().get_left() {
-                None => return,
-                Some(m) => m,
-            };
-            print_matrix_interface(mat);
-        },
+        // PrintMatrix => unsafe {
+        //     let mat = match target.lock().unwrap().get_left() {
+        //         None => return,
+        //         Some(m) => m,
+        //     };
+        //     print_matrix_interface(mat);
+        // },
     }
 }

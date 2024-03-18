@@ -60,7 +60,7 @@ struct Matrix * MatrixFactory(const int *shape, int num_dum, location loc){
 
 
 Matrix * CreateUniformRandomMatrix(const int * shape, int num_dim, location loc, int min_val, int max_val) {
-    printf("CUDA - Called");
+    printf("CUDA - Called\n");
     Matrix * m = MatrixFactory(shape, num_dim, loc);
     dim3 gridDim(CEIL_DIV(m->size, BLOCKSIZE * BLOCKSIZE));
     int blockThreads = min(BLOCKSIZE*BLOCKSIZE, m->size);
@@ -68,7 +68,7 @@ Matrix * CreateUniformRandomMatrix(const int * shape, int num_dim, location loc,
 
     cuRandArrInit<<<gridDim, blockDim>>>(m->elements, min_val, max_val, m->size);
     cudaDeviceSynchronize();
-    printf("Computed - CUDA");
+    printf("Computed - CUDA\n");
     return m;
 }
 
@@ -136,14 +136,19 @@ struct Matrix * MatMul(const struct Matrix *a, const struct Matrix *b) {
 
     Matrix *C = CreateZeroMatrix(b->num_dim, new_shape, GPU);
 
-    dim3 gridDim(CEIL_DIV(new_shape[0], BLOCKSIZE), CEIL_DIV(new_shape[1], BLOCKSIZE), 1);
+    dim3 gridDim(CEIL_DIV(new_shape[1], BLOCKSIZE), CEIL_DIV(new_shape[0], BLOCKSIZE));
 
-    dim3 blockDim(BLOCKSIZE, BLOCKSIZE);
-
+    dim3 blockDim(BLOCKSIZE, BLOCKSIZE / 4);
     sgemm_kernel<<<gridDim, blockDim>>>(a->shape[0],
             b->shape[1],
             b->shape[0],
             1.0, 0.0, a->elements, b->elements, C->elements);
     cudaDeviceSynchronize();
     return C;
+}
+
+void FreeMatrix(struct Matrix *m) {
+    cudaFree(m->elements);
+    free(m->shape);
+    free(m);
 }

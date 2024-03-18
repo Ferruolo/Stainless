@@ -1,6 +1,4 @@
 use std::sync::mpsc::Sender;
-use std::sync::{Arc, Mutex};
-use crate::dep_tree::DepTree;
 use crate::object::Object;
 
 #[derive(Copy, Clone, PartialEq, Eq, Hash)]
@@ -15,7 +13,7 @@ pub(crate) enum Operation {
     Add,
     MatrixMult,
     Init(MatrixInitType),
-    PrintMatrix
+
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -46,8 +44,9 @@ pub(crate) enum LocationMove {
 pub(crate) enum ThreadCommands {
     FREE(Sender<ThreadCommands>),
     CacheMove(LocationMove),
-    Calculation(Arc<Mutex<Object>>),
-    ComputeObject(Arc<Mutex<Object>>, Arc<Mutex<DepTree>>),
+    Calculation(Object),
+    ComputeObject(Object),
+    PrintMatrix(Object),
     KILL,
     NullType,
 }

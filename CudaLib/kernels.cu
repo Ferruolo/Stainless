@@ -90,8 +90,8 @@ __global__ void sgemm_kernel(int M, int N, int K, float alpha, float beta,
     // Set values of C using temp
 
     #pragma unroll
-    for (int _i = 0; _i < CELLS_PER_KERNEL; ++_i) {
-        C[(row + _i) * N + col] = alpha * temp[_i] + beta * C[(row + _i) * N + col];
+    for (int i = 0; i < CELLS_PER_KERNEL; ++i) {
+        C[(row + i) * N + col] = alpha * temp[i] + beta * C[(row + i) * N + col];
     }
 // TODO:
 // Double Buffer

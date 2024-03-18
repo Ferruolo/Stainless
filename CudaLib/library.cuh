@@ -1,6 +1,6 @@
 #pragma once
 
-extern "C" {
+//extern "C" {
 
     // Definitions
     enum location {
@@ -33,7 +33,9 @@ extern "C" {
 
     struct Matrix *MatMul(const struct Matrix *a, const struct Matrix *b);
 
-}
+    void FreeMatrix(struct Matrix *m);
+
+//}
 
 /* Matrix Operations:
  *

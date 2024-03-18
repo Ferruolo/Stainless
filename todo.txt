@@ -1,3 +1,8 @@
+
+1. Fix Major Cuda Error
+
+2. Re-Integrate Dep Trees
+
 1. Add basic memory management and GPU computation
 
 2. Clean up code
