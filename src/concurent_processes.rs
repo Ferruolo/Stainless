@@ -27,7 +27,7 @@ pub fn spin_up(
     // Define the communicate channel
     let (sender, receiver): (Sender<ThreadCommands>, Receiver<ThreadCommands>) = channel();
     let ret_sender = sender.clone();
-    let (home_send, home_recieve) = channel();
+    let (home_send, home_receive) = channel();
     return (
         thread::spawn(move || {
             // initialize scheduler and workers
@@ -93,7 +93,7 @@ pub fn spin_up(
             kill_workers(workers, worker_queue);
         }),
         ret_sender,
-        home_recieve,
+        home_receive,
     );
 }
 

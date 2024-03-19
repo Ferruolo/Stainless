@@ -1,6 +1,5 @@
 use std::mem::swap;
 use std::sync::mpsc::Sender;
-use std::sync::{Arc, Mutex};
 use std::thread::JoinHandle;
 
 use crate::classes::MatrixInitType::UniformRandomMatrix;

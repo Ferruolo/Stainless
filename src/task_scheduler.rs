@@ -118,7 +118,7 @@ impl Scheduler {
             }
         };
         for node in tree.get_parents() {
-            self.computation_queue.decrease_num_children(*node);
+            self.computation_queue.decrease_num_children(node);
         }
     }
 }
