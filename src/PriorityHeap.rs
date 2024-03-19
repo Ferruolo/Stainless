@@ -10,32 +10,22 @@ pub(crate) trait HeapInterface {
     fn no_dependencies_remaining(&self) -> bool;
     fn decrease(&mut self);
 
-    fn decrease_num_children(&mut self);
+    fn decrease_num_children_heap(&mut self);
+
+    fn set_parent_heap(&mut self, parent: u64);
 }
-pub struct BinaryPQ<T: HeapInterface> {
+pub struct BinaryPQ<T: HeapInterface + Clone> {
     data: Vec<T>,
     lookup: HashMap<u64, usize>,
 }
 
-impl<T: HeapInterface> BinaryPQ<T> {
-    pub(crate) fn new() -> Self {
-        BinaryPQ {
-            data: Vec::with_capacity(20),
-            lookup: HashMap::with_capacity(20),
-        }
-    }
-
+impl<T: HeapInterface + Clone> BinaryPQ<T> {
     fn is_empty(&self) -> bool {
         self.data.is_empty()
     }
 
     fn len(&self) -> usize {
         self.data.len()
-    }
-
-    pub fn insert(&mut self, item: T) {
-        self.data.push(item);
-        self.bubble_up(self.len() - 1);
     }
 
     fn remove_min(&mut self) -> Option<T> {
@@ -89,22 +79,8 @@ impl<T: HeapInterface> BinaryPQ<T> {
         self.data.first()
     }
 
-    fn decrease_key(&mut self, index: usize, new_value: T) {
-        self.data[index] = new_value;
+    fn decrease_key(&mut self, index: usize) {
         self.bubble_up(index);
-    }
-
-    fn decrease_num_children(&self, name: u64) {
-        let idx = match self.lookup.get(&name) {
-            None => return,
-            Some(idx) => idx,
-        };
-        let node = &mut self.data[*idx];
-        node.decrease_num_children();
-    }
-
-    fn increment_num_dependencies(&self, child: u64, parent: u64) {
-        
     }
 
     fn remove(&mut self, index: usize) -> Option<T> {
@@ -147,5 +123,52 @@ impl<T: HeapInterface> BinaryPQ<T> {
         }
 
         true
+    }
+    /*
+     * Public Interface
+     */
+
+    pub(crate) fn new() -> Self {
+        BinaryPQ {
+            data: Vec::with_capacity(20),
+            lookup: HashMap::with_capacity(20),
+        }
+    }
+
+    pub fn decrease_num_children(&mut self, name: u64) {
+        let idx = match self.lookup.get(&name) {
+            None => return,
+            Some(idx) => idx,
+        };
+        let node = &mut self.data[*idx];
+        node.decrease_num_children_heap();
+        self.decrease_key(idx.clone());
+    }
+
+    pub fn increment_num_dependencies(&mut self, child: u64, parent: u64) {
+        let child_idx = match { self.lookup.get(&child) } {
+            None => {
+                return;
+            }
+            Some(idx) => idx,
+        };
+        let mut child = {
+            self.data[*child_idx].clone()
+        };
+        child.set_parent_heap(parent);
+        self.decrease_key(child_idx.clone());
+    }
+    pub fn insert(&mut self, item: T) {
+        self.data.push(item);
+        self.bubble_up(self.len() - 1);
+    }
+
+    pub fn get_next(&mut self) -> Option<T> {
+        if let Some(min_item) = self.get_min() {
+            if min_item.no_dependencies_remaining() {
+                return self.remove_min()
+            }
+        }
+        return None
     }
 }

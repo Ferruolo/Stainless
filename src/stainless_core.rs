@@ -8,7 +8,7 @@ use crate::classes::Operation::{Init, MatrixMult};
 use crate::classes::ThreadCommands::*;
 use crate::classes::{Operation, ThreadCommands};
 use crate::concurent_processes::spin_up;
-use crate::object::{Object, ObjectContents, ObjectInterface};
+use crate::object::{Object, ObjectInterface};
 
 pub(crate) struct MultiThread {
     // Manager Thread, controls all other threads. All other threads

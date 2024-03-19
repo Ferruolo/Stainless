@@ -22,8 +22,11 @@ pub trait DepTreeInterface {
     fn get_name(&self) -> u64;
     fn get_num_dependencies(&self) -> usize;
     fn set_parent(&mut self, parent: u64);
-
     fn decrease_num_children(&mut self);
+
+    fn get_parents(&self) -> &Vec<u64>;
+
+    fn get_node(&self) -> Object;
 }
 
 
@@ -54,7 +57,7 @@ impl DepTreeInterface for DepTreeInner {
                         None => {(height, num_live_children)}
                         Some(c) => {
                             let mut c = c.clone();
-                            c.set_parent(name);
+                            c.set_parent_heap(name);
                             (max(height, c.get_height()), num_live_children + 1)
                         }
                     }
@@ -97,6 +100,18 @@ impl DepTreeInterface for DepTreeInner {
         self.parents.push(parent);
         self.increment_num_dependencies();
     }
+
+    fn decrease_num_children(&mut self) {
+        self.num_live_children -= 1
+    }
+
+    fn get_parents(&self) -> &Vec<u64> {
+        return &self.parents
+    }
+
+    fn get_node(&self) -> Object {
+        return self.node.clone();
+    }
 }
 
 #[derive(Clone)]
@@ -130,6 +145,18 @@ impl DepTreeInterface for DepTree {
     fn set_parent(&mut self, parent: u64) {
         self.inner.borrow_mut().set_parent(parent);
     }
+
+    fn decrease_num_children(&mut self) {
+        self.inner.borrow_mut().decrease_num_children();
+    }
+
+    fn get_parents(&self) -> &Vec<u64> {
+        &self.inner.borrow().get_parents()
+    }
+
+    fn get_node(&self) -> Object {
+        return self.inner.borrow().get_node()
+    }
 }
 
 
@@ -151,8 +178,11 @@ impl HeapInterface for DepTree {
         todo!()
     }
 
-    fn decrease_num_children(&mut self) {
-        
-        
+    fn decrease_num_children_heap(&mut self) {
+        self.inner.borrow_mut().decrease_num_children()
+    }
+
+    fn set_parent_heap(&mut self, parent: u64) {
+        self.set_parent(parent);
     }
 }

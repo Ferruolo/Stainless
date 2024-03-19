@@ -107,5 +107,18 @@ impl Scheduler {
         return self.terminator && self.num_live == 0;
     }
     
-    pub fn release_item(&self, )
+    pub fn release_item(&mut self, name: u64) {
+        let tree = if let Some(tree) = self.name_lookup.get(&name) {
+           tree
+        } else {
+            if name != 0 {
+                panic!("Deleted DepTree Way too Early");
+            } else {
+                return
+            }
+        };
+        for node in tree.get_parents() {
+            self.computation_queue.decrease_num_children(*node);
+        }
+    }
 }
