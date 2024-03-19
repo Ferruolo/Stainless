@@ -62,7 +62,7 @@ impl Executor for MultiThread {
         Self {
             manager: Some(manager),
             manager_inbox: message_box,
-            name_iter: 0,
+            name_iter: 1, // Name Increments begin at 1
         }
     }
     fn matrix_builder(

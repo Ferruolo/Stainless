@@ -42,7 +42,7 @@ pub(crate) enum LocationMove {
 }
 
 pub(crate) enum ThreadCommands {
-    FREE(Sender<ThreadCommands>),
+    FREE(Sender<ThreadCommands>, u64),
     CacheMove(LocationMove),
     Calculation(Object),
     ComputeObject(Object),

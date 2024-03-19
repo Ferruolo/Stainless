@@ -11,17 +11,18 @@
 
 use crate::classes::ThreadCommands::{ ComputeObject};
 use crate::classes::{LocationMove, ThreadCommands};
-use crate::dep_tree::DepTree;
+use crate::dep_tree::{DepTree, DepTreeInterface};
 use crate::object::{Object, ObjectInterface};
 use std::collections::{HashMap, VecDeque};
 use std::sync::{Arc, Mutex};
+use crate::PriorityHeap::BinaryPQ;
 
 pub(crate) struct Scheduler {
-    name_lookup: HashMap<u64, Arc<Mutex<DepTree>>>,
+    name_lookup: HashMap<u64, DepTree>,
     // Used for O(1) lookup of children,
     //preventing circular dependency which would
     // require locking DepTrees behind a mutex
-    computation_queue: VecDeque<Object>,
+    computation_queue: BinaryPQ<DepTree>,
     // Queue of items to be computed. Designed so items with lowest height and lowest number
     // of direct dependencies are computed first.
     // TODO: Write correctness and optimality proofs for this
@@ -41,7 +42,7 @@ impl Scheduler {
         // Initialize Elements
         return Self {
             name_lookup: HashMap::with_capacity(20),
-            computation_queue: VecDeque::new(),
+            computation_queue: BinaryPQ::new(),
             location_move_queue: Default::default(),
             terminator: false,
             num_live: 0,
@@ -52,11 +53,14 @@ impl Scheduler {
      * Schedules the object in the computation queue
      */
     pub fn schedule(&mut self, obj: Object) {
-
         let name = obj.get_name();
+        let new_dep_tree = DepTree::init(&obj, &self.name_lookup);
+        // Increment num_dependencies for child, link as parent to children
+        // Adjust children's place in priority queue
+
 
         // Queue up for computation
-        self.computation_queue.push_back(obj);
+        self.computation_queue.insert(new_dep_tree);
         println!("Scheduled {}", name);
         // Increment number of live elements
         self.num_live += 1;
@@ -70,10 +74,11 @@ impl Scheduler {
     pub fn get_next(&mut self) -> Option<ThreadCommands> {
         // Make sure all cache movements are scheduled. If everything is in the
         // right place for the min item, then nothing will be scheduled here
-        if let Some(obj) = self.computation_queue.pop_front() {
-            let name = obj.get_name();
+        if let Some(dt) = self.computation_queue.get_next() {
+            let name = dt.get_name();
             self.num_live -= 1;
             println!("Sending {} for computation", name);
+            let obj: Object = dt.get_node().clone();
             Some(ComputeObject(obj))
         } else {
             None
@@ -101,4 +106,6 @@ impl Scheduler {
         // println!("Killable: {}", self.terminator);
         return self.terminator && self.num_live == 0;
     }
+    
+    pub fn release_item(&self, )
 }

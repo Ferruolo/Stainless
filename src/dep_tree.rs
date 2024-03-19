@@ -1,155 +1,158 @@
 use std::cell::RefCell;
+use std::cmp::max;
 use std::collections::HashMap;
-use std::hash::{Hash, Hasher};
-use std::mem::swap;
+use std::hash::{Hash};
 use std::rc::Rc;
-use std::sync::{Arc, Mutex};
-use libc::pthread_mutexattr_t;
 use crate::classes::ItemLoc;
-use crate::fibonacci_queue::HeapInterface;
-use crate::object::ObjectContents;
+use crate::object::{Object, ObjectInterface};
+use crate::PriorityHeap::HeapInterface;
 
 
-pub(crate) struct DepTree {
-    node: Arc<Mutex<ObjectContents>>,
-    children: Vec<Arc<Mutex<DepTree>>>,
-    location: ItemLoc,
-    height: usize,
-    num_dependencies: usize,
-    name: u64,
-    parents: Vec<Arc<Mutex<DepTree>>>,
-    num_live_deps: usize,
+/*
+* Dep Tree Functionality:
+*   - Tracks if any dependencies still need calculation (won't get sent to calculation until they are)
+*   - Does NOT deadbolt
+*   - Releases parent tress upon calculation
+*/
+
+pub trait DepTreeInterface {
+    fn init(obj: &Object,  lookup: &HashMap<u64, DepTree>) -> Self;
+    fn get_height(&self) -> usize;
+    fn increment_num_dependencies(&mut self);
+    fn get_name(&self) -> u64;
+    fn get_num_dependencies(&self) -> usize;
+    fn set_parent(&mut self, parent: u64);
+
+    fn decrease_num_children(&mut self);
 }
 
-impl DepTree {
-    pub fn init(obj: Arc<Mutex<ObjectContents>>, name_lookup: &mut HashMap<u64, Arc<Mutex<DepTree>>>) -> Arc<Mutex<Self>> {
-        let name = obj.lock().unwrap().get_name();
-        let children: Vec<Arc<Mutex<DepTree>>> = {
-            let unwrapped = &obj.lock().unwrap();
-            let unwrapped_children = [unwrapped.get_right(), unwrapped.get_left()];
-            let child_names: Vec<&Arc<Mutex<DepTree>>> = unwrapped_children
-                .iter()
-                .filter_map(|item| {
-                    if let Some(child) = item {
-                        let name = child.lock().unwrap().get_name();
-                        name_lookup.get(&name)
-                    } else {
-                        None
+
+
+
+struct DepTreeInner {
+    node: Object, // The Object that this DepTree Object references
+    location: ItemLoc, // The location of the object in memory
+    height: usize, // Height (number of items that need to be calculated before this one
+    num_dependencies: usize, // Number of objects that depend on this one
+    name: u64, // Node Name
+    parents: Vec<u64>, // Names of all parents for this dep tree
+    num_live_children: usize, // Number of live objects that this one depends on
+}
+
+impl DepTreeInterface for DepTreeInner {
+    fn init(obj: &Object,  lookup: &HashMap<u64, DepTree>) -> Self {
+        let name = obj.get_name();
+
+        let height: usize = 0;
+        let num_live_children: usize = 0;
+        let child_handler = |child: Option<Object>, height, num_live_children| {
+            match child {
+                None => {(height, num_live_children)}
+                Some(c) => {
+                    let name = c.get_name();
+                    match lookup.get(&name) {
+                        None => {(height, num_live_children)}
+                        Some(c) => {
+                            let mut c = c.clone();
+                            c.set_parent(name);
+                            (max(height, c.get_height()), num_live_children + 1)
+                        }
                     }
-                })
-                .collect();
-            child_names.iter().map(|item| Arc::clone(item)).collect()
+                }
+            }
         };
-        for child in &children {
-            child.lock().unwrap().increment_num_dependencies();
-        }
-        let children_clone = children.clone();
-        let height = children.iter().map(|i| i.lock().unwrap().get_height()).max().unwrap_or(0) + 1;
-        let loc = obj.lock().unwrap().get_loc();
-        let new_item = Arc::new(Mutex::new(Self {
-            node: obj,
-            children,
-            location: loc,
+        (height, num_live_children) = child_handler(obj.get_left(), height, num_live_children);
+        (height, num_live_children) = child_handler(obj.get_right(), height, num_live_children);
+
+
+        return Self {
+            node: obj.clone(),
+            location: obj.get_loc(),
             height,
             num_dependencies: 0,
             name,
             parents: Vec::new(),
-            num_live_deps: children_clone.len()
-        }));
-
-        for child in children_clone {
-            child.lock().unwrap().add_parent(&new_item);
-        }
-        return new_item;
+            num_live_children,
+        };
     }
 
-    pub fn get_height(&self) -> usize {
+    fn get_height(&self) -> usize {
         return self.height;
     }
 
-    pub(crate) fn increment_num_dependencies(&mut self) {
+    fn increment_num_dependencies(&mut self) {
         self.num_dependencies += 1;
     }
 
-    pub fn get_name(&self) -> u64 {
+    fn get_name(&self) -> u64 {
         return self.name;
     }
 
-    pub fn get_children(&self) -> &Vec<Arc<Mutex<DepTree>>> {
-        return &self.children;
-    }
 
-    pub fn get_num_dependencies(&self) -> usize {
+    fn get_num_dependencies(&self) -> usize {
         return self.num_dependencies;
     }
 
-    pub fn detatch(&mut self) {
-        self.children.clear();
-        let mut parents = Vec::new();
-        swap(&mut parents, &mut self.parents);
-        for parent in parents {
-            let parent_name = parent.lock().unwrap().get_name();
-            println!("Releasing {} from {}", self.name, parent_name);
-            parent.lock().unwrap().detatch_child(self.name);
+    fn set_parent(&mut self, parent: u64) {
+        self.parents.push(parent);
+        self.increment_num_dependencies();
+    }
+}
+
+#[derive(Clone)]
+pub struct DepTree {
+    inner: Rc<RefCell<DepTreeInner>>
+}
+
+impl DepTreeInterface for DepTree {
+    fn init(obj: &Object, lookup: &HashMap<u64, DepTree>) -> Self {
+        return Self {
+            inner: Rc::new(RefCell::new(DepTreeInner::init(obj, lookup))),
         }
-        self.parents.clear();
-    }
-    pub fn detatch_child(&mut self, name: u64) {
-        println!("{} detached from {}", name, self.name);
-        self.num_live_deps -= 1
-    }
-    pub fn add_parent(&mut self, parent: &Arc<Mutex<DepTree>>) {
-        self.parents.push(Arc::clone(parent))
     }
 
+    fn get_height(&self) -> usize {
+        return self.inner.borrow().get_height()
+    }
 
-    pub fn get_node(&self) -> Arc<Mutex<ObjectContents>> {
-        return Arc::clone(&self.node);
+    fn increment_num_dependencies(&mut self) {
+        self.inner.borrow_mut().increment_num_dependencies();
+    }
+
+    fn get_name(&self) -> u64 {
+        return self.inner.borrow().get_name()
+    }
+
+    fn get_num_dependencies(&self) -> usize {
+        return self.inner.borrow().get_num_dependencies();
+    }
+
+    fn set_parent(&mut self, parent: u64) {
+        self.inner.borrow_mut().set_parent(parent);
     }
 }
 
 
-impl Hash for DepTree {
-    fn hash<H: Hasher>(&self, state: &mut H) {
-        return self.name.hash(state)
-    }
-}
 
-
-impl HeapInterface for Arc<Mutex<DepTree>> {
+impl HeapInterface for DepTree {
     fn get_key(&self) -> u64 {
-        self.lock().unwrap().node.lock().unwrap().get_name()
+        todo!()
     }
 
-    fn compare_items(&self, other: &Self) -> bool {
-        let get_height = |x: &Arc<Mutex<DepTree>>|{x.lock().unwrap().get_height()};
-        let get_num_dependencies = |x: &Arc<Mutex<DepTree>>|{x.lock().unwrap().num_dependencies};
-        let get_name = |x: &Arc<Mutex<DepTree>>| {x.lock().unwrap().get_name()};
-
-        let l_height = get_height(self);
-        let r_height = get_height(other);
-        let l_num_deps = get_num_dependencies(self);
-        let r_num_deps = get_num_dependencies(other);
-        let l_name = get_name(self);
-        let r_name = get_name(self);
-
-
-        return if l_height != r_height {
-            l_height > r_height
-        } else if l_num_deps != r_num_deps {
-            l_num_deps < r_num_deps
-        } else if l_name != r_name {
-            l_name > r_name
-        } else {
-            false
-        }
+    fn is_less_than(&self, other: &Self) -> bool {
+        todo!()
     }
 
     fn no_dependencies_remaining(&self) -> bool {
-        self.lock().unwrap().num_live_deps == 0
+        todo!()
     }
 
     fn decrease(&mut self) {
-        self.lock().unwrap().increment_num_dependencies();
+        todo!()
+    }
+
+    fn decrease_num_children(&mut self) {
+        
+        
     }
 }

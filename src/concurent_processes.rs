@@ -1,3 +1,10 @@
+use mpsc::channel;
+use std::collections::VecDeque;
+use std::sync::mpsc;
+use std::sync::mpsc::{Receiver, Sender};
+use std::thread;
+use std::thread::JoinHandle;
+
 use crate::binding_interface::{
     create_uniform_random_mat_interface, matrix_mul_interface, print_matrix_interface,
 };
@@ -5,14 +12,8 @@ use crate::classes::MatrixInitType::UniformRandomMatrix;
 use crate::classes::Operation::{Init, MatrixMult};
 use crate::classes::ThreadCommands::{CacheMove, ComputeObject, NullType, FREE, KILL};
 use crate::classes::{MatrixInitType, Operation, ThreadCommands};
-use crate::object::{Object, ObjectContents, ObjectInterface};
+use crate::object::{Object, ObjectInterface};
 use crate::task_scheduler::Scheduler;
-use mpsc::channel;
-use std::collections::VecDeque;
-use std::sync::mpsc::{Receiver, Sender};
-use std::sync::{mpsc, Arc, Mutex};
-use std::thread;
-use std::thread::JoinHandle;
 
 // Spins up and defines the manager
 #[inline]
@@ -46,15 +47,17 @@ pub fn spin_up(
                     }
                 }
 
-
                 // Read next instruction
                 match receiver.try_recv().unwrap_or(NullType) {
                     // FREE -> A thread has been freed. Either schedule item
                     // or add the worker to the queue
-                    FREE(address) => match scheduler.get_next() {
-                        None => worker_queue.push_back(address),
-                        Some(cmd) => address.send(cmd).unwrap(),
-                    },
+                    FREE(address, recently_computed) => {
+                        scheduler.release_item(recently_computed);
+                        match scheduler.get_next() {
+                            None => worker_queue.push_back(address),
+                            Some(cmd) => address.send(cmd).unwrap(),
+                        }
+                    }
                     // Kill all threads
                     KILL => {
                         println!("Kill;");
@@ -82,7 +85,6 @@ pub fn spin_up(
                         );
 
                         scheduler.schedule(obj);
-
                     }
                     _ => continue,
                 }
@@ -109,25 +111,29 @@ fn initialize_workers(
         let (tx, rx): (Sender<ThreadCommands>, Receiver<ThreadCommands>) = channel();
         let manager_address_local = manager_address.clone();
         workers.push(thread::spawn(move || {
-            manager_address_local.send(FREE(tx.clone())).unwrap();
+            manager_address_local.send(FREE(tx.clone(), 0)).unwrap();
             'worker_thread: loop {
                 // Read in new message from manager
+                let mut obj_name: u64 = 0;
                 match rx.recv().unwrap() {
                     // TODO: Cache Move
                     CacheMove(_) => {}
                     ComputeObject(obj) => {
+                        obj_name = obj.get_name();
                         perform_calculation(obj);
                     }
                     KILL => break 'worker_thread,
                     ThreadCommands::PrintMatrix(obj) => unsafe {
                         print_matrix_interface(obj);
-                    }
+                    },
                     _ => {
                         continue 'worker_thread;
                     }
                 }
 
-                manager_address_local.send(FREE(tx.clone())).unwrap();
+                manager_address_local
+                    .send(FREE(tx.clone(), obj_name))
+                    .unwrap();
                 println!("Thread Free'd - Requesting more work");
             }
             println!("thread {} Killed", i);

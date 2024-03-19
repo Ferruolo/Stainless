@@ -6,7 +6,7 @@ mod task_scheduler;
 mod bindings;
 mod binding_interface;
 mod dep_tree;
-mod fibonacci_queue;
+mod PriorityHeap;
 mod concurent_processes;
 
 use crate::stainless_core::{Executor, MultiThread};

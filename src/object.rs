@@ -3,7 +3,7 @@ use crate::bindings::{FreeMatrix, Matrix};
 use crate::classes::{ItemLoc, Operation};
 use crate::binding_interface::RustMatrix;
 
-pub(crate) struct ObjectContents {
+struct ObjectContents {
     loc: ItemLoc,
     name: u64,
     shape: Vec<u64>,
