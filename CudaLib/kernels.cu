@@ -47,8 +47,8 @@ __global__ void sgemm_kernel(int M, int N, int K, float alpha, float beta,
 
     float * aLocalArr[CELLS_PER_KERNEL];
     #pragma unroll
-    for (int _i = 0; _i < CELLS_PER_KERNEL; ++_i) {
-        aLocalArr[_i] = a + (row + _i) * K;
+    for (int i = 0; i < CELLS_PER_KERNEL; ++i) {
+        aLocalArr[i] = a + (row + i) * K;
     }
 
     float * bLocal = B + col;
