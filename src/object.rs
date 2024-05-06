@@ -161,3 +161,36 @@ impl ObjectInterface for Object {
         self.contains.lock().unwrap().get_executable()
     }
 }
+
+
+#[cfg(test)]
+mod tests {
+    use crate::classes::MatrixInitType::ConstantMatrix;
+    use crate::classes::Operation::Init;
+    use super::*;
+    #[test]
+    fn test_init() {
+        let obj = {
+            Object::init(0,
+                         &vec![2, 2],
+                         false,
+                         Init(ConstantMatrix(1)),
+                         None,
+                         None)
+            };
+        assert_eq!(obj.get_name(), 0);
+    }
+
+    fn test_shape() {
+        let obj = {
+            Object::init(0,
+                         &vec![2, 2],
+                         false,
+                         Init(ConstantMatrix(1)),
+                         None,
+                         None)
+        };
+    }
+
+}
+

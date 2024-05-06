@@ -8,7 +8,7 @@ mod binding_interface;
 mod dep_tree;
 mod PriorityHeap;
 mod concurent_processes;
-mod demo;
+// mod demo;
 
 use crate::stainless_core::{Executor, MultiThread};
 
