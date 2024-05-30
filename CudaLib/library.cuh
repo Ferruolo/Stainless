@@ -1,5 +1,6 @@
 #pragma once
 
+//#ifdef
 //extern "C" {
 
     // Definitions
@@ -33,14 +34,21 @@
 
     struct Matrix *MatMul(const struct Matrix *a, const struct Matrix *b);
 
+    struct Matrix *MatrixAdd(const struct Matrix *a, const struct Matrix *b);
+
     void FreeMatrix(struct Matrix *m);
+
+
+
+
+
+
 
 //}
 
 /* Matrix Operations:
  *
- * Matrix Add
- * Matrix Subtract
+ * Matrix Add / Subtract
  * MatMul
  * ElementWise
  * Transpose

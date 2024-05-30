@@ -16,3 +16,7 @@ __global__ void checkEqualityKernel(float *a, float*B, bool *target, int size);
 // Functional Kernels
 __global__ void sgemm_kernel(int M, int N, int K, float alpha, float beta,
                              float *a, float *B, float *C);
+
+__global__ void matrixAddKernel(const int * size, float * A, float *B,
+                                float *C, const float *alpha, const float *beta);
+

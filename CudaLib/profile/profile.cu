@@ -26,7 +26,7 @@ __global__ void colToRowMajorKernel(float *colMajor, float *rowMajor, int rows, 
 }
 
 int main() {
-    int multiplier = 16;
+    int multiplier = 1;
     printf("%d\n", multiplier * BLOCKSIZE);
     // Initialize shapes as arrays
     int shapeA[] = {multiplier * BLOCKSIZE, multiplier * BLOCKSIZE};
@@ -38,6 +38,7 @@ int main() {
     Matrix *matA = CreateUniformRandomMatrix(shapeA, 2, GPU, -20, 20);
     Matrix *matB = CreateUniformRandomMatrix(shapeB, 2, GPU, -20, 20);
     Matrix *matC = CreateZeroMatrix(2, shapeC, GPU);
+    Matrix *matCGEAM = CreateZeroMatrix(2, shapeA, GPU);
 
     float * alpha;
     cudaMallocManaged(&alpha, sizeof(float));
@@ -52,9 +53,8 @@ int main() {
     int new_shape[2] = {matA->shape[0], matB->shape[1]};
     Matrix *matMulRes = CreateZeroMatrix(matB->num_dim, new_shape, GPU);
     dim3 gridDim(CEIL_DIV(new_shape[1], BLOCKSIZE), CEIL_DIV(new_shape[0], BLOCKSIZE));
-
     dim3 blockDim(BLOCKSIZE, BLOCKSIZE / 4);
-    auto start = std::chrono::high_resolution_clock::now();
+
     sgemm_kernel<<<gridDim, blockDim>>>(matA->shape[0],
                                         matB->shape[1],
                                         matB->shape[0],
@@ -63,13 +63,13 @@ int main() {
                                         matB->elements,
                                         matMulRes->elements);
     cudaDeviceSynchronize();
-    auto finish = std::chrono::high_resolution_clock::now();
-    auto microseconds = std::chrono::duration_cast<std::chrono::microseconds>(finish-start);
+
     ////////////////////////////////////////////////////////////////////////////////
 
-    printf("My function run time: %ld\n", microseconds.count());
 
-
+    Matrix * matAddCustomC = MatrixAdd(matA, matB);
+    cudaDeviceSynchronize();
+    ////////////////////////////////////////////////////////////////////////////////
 
     cublasHandle_t handle;
     cublasCreate(&handle);
@@ -101,10 +101,12 @@ int main() {
 
 
 
-    float * cColMajor;
-    cudaMalloc(&cColMajor, matC->size * sizeof(float));
+    float * cColMajorGEMM;
+    float * cColMajorGEAM;
+    cudaMalloc(&cColMajorGEMM, matC->size * sizeof(float));
+    cudaMalloc(&cColMajorGEAM, matA->size * sizeof(float));
+
     cudaDeviceSynchronize();
-    auto startCublas = std::chrono::high_resolution_clock::now();
     cublasSgemm_v2(handle, CUBLAS_OP_N, CUBLAS_OP_N,
                    shapeA[0],
                    shapeB[1],
@@ -115,16 +117,20 @@ int main() {
                    bColMajor,
                    shapeB[0],
                    beta,
-                   cColMajor,
+                   cColMajorGEMM,
                    shapeC[0]
     );
 
-    auto finishCublas = std::chrono::high_resolution_clock::now();
-    cudaDeviceSynchronize();
-    auto microsecondsCublas =
-            std::chrono::duration_cast<std::chrono::microseconds>
-                    (finishCublas-startCublas);
-    printf("CUBLAS run time: %ld\n", microsecondsCublas.count());
+
+    cublasSgeam(handle, CUBLAS_OP_N, CUBLAS_OP_N,
+                matA->shape[0], matA->shape[1],
+                alpha, aColMajor, matA->shape[0],
+                alpha, bColMajor, matB->shape[0],
+                cColMajorGEAM, matA->shape[0]);
+
+
+
+
 
     dim3 blockDimReturn(BLOCKSIZE, BLOCKSIZE);
     dim3 gridDimReturn(CEIL_DIV(shapeC[0], BLOCKSIZE) ,
@@ -132,24 +138,33 @@ int main() {
 
     // Launch kernel
     colToRowMajorKernel<<<gridDimReturn, blockDimReturn>>>
-            (cColMajor, matC->elements, shapeC[0], shapeC[1]);
+            (cColMajorGEMM, matC->elements, shapeC[0], shapeC[1]);
+
+    colToRowMajorKernel<<<gridDimReturn, blockDimReturn>>>
+            (cColMajorGEAM, matCGEAM->elements, shapeA[0], shapeA[1]);
 
     cudaDeviceSynchronize();
     if (checkMatrixEquality(matMulRes, matC)) {
-        printf("Matrices are equal\n");
+        printf("MatMul Matrices are equal\n");
     } else {
-        printf("Matrices are not equal\n");
+        printf("MatMul Matrices are not equal\n");
     }
 
+    cudaDeviceSynchronize();
+    if (checkMatrixEquality(matAddCustomC, matCGEAM)) {
+        printf("Mat ADD Matrices are equal\n");
+    } else {
+        printf("Mat ADD Matrices are not equal\n");
+    }
 
-    // printf("---\n");
-    // printMatrix(matA);
-    // printf("---\n");
-    // printMatrix(matB);
-    // printf("---\n");
-    // printMatrix(matC);
-    // printf("---\n");
-    // printMatrix(matMulRes);
+//     printf("---\n");
+//     printMatrix(matA);
+//     printf("---\n");
+//     printMatrix(matB);
+//     printf("---\n");
+//     printMatrix(matC);
+//     printf("---\n");
+//     printMatrix(matMulRes);
 
     cublasDestroy(handle);
     cudaFree(matA->elements);
@@ -165,6 +180,7 @@ int main() {
 
     cudaFree(aColMajor);
     cudaFree(bColMajor);
-    cudaFree(cColMajor);
+    cudaFree(cColMajorGEMM);
+    cudaFree(cColMajorGEAM);
     return 0;
 }

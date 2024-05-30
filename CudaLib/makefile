@@ -11,14 +11,14 @@ LIB_DIR = lib
 BIN_DIR = bin
 
 # Files
-LIB_SRCS = $(wildcard $(SRC_DIR)/*.cu)
-LIB_HDRS = $(wildcard $(SRC_DIR)/*.cuh) $(wildcard $(SRC_DIR)/*.h)
-LIB_OBJS = $(patsubst $(SRC_DIR)/%.cu,$(BUILD_DIR)/%.o,$(LIB_SRCS))
+SRC_FILES = $(wildcard $(SRC_DIR)/*.cu)
+LIB_HEADERS = $(wildcard $(SRC_DIR)/*.cuh) $(wildcard $(SRC_DIR)/*.h)
+LIB_OBJS = $(patsubst $(SRC_DIR)/%.cu,$(BUILD_DIR)/%.o,$(SRC_FILES))
 LIB_NAME = $(LIB_DIR)/libCuda.so
 
-#PROFILE_SRC = profile.cu
-#PROFILE_OBJ = $(BUILD_DIR)/profile.o
-#PROFILE_BIN = $(BIN_DIR)/profile
+PROFILE_SRC = profile/profile.cu
+PROFILE_OBJ = $(BUILD_DIR)/profile.o
+PROFILE_BIN = $(BIN_DIR)/profile
 
 # Libraries
 LIBS = -lcublas
@@ -40,13 +40,17 @@ memcheck debug: $(PROFILE_BIN)
 $(LIB_NAME): $(LIB_OBJS)
 	$(NVCC) -shared -o $@ $^
 
-$(BUILD_DIR)/%.o: $(SRC_DIR)/%.cu $(LIB_HDRS)
+$(BUILD_DIR)/%.o: $(SRC_DIR)/%.cu $(LIB_HEADERS)
+	@mkdir -p $(BUILD_DIR)
+	$(NVCC) $(NVCCFLAGS) -o $@ -c $<
+
+$(PROFILE_OBJ): $(PROFILE_SRC)
+	@mkdir -p $(BUILD_DIR)
 	$(NVCC) $(NVCCFLAGS) -o $@ -c $<
 
 $(PROFILE_BIN): $(PROFILE_OBJ) $(LIB_OBJS)
+	@mkdir -p $(BIN_DIR)
 	$(NVCC) -o $@ $^ $(LIBS)
 
 clean:
-	rm -rf $(BUILD_DIR)/* $(LIB_NAME) $(PROFILE_BIN)
-
-
+	rm -rf $(BUILD_DIR) $(LIB_NAME) $(PROFILE_BIN)
