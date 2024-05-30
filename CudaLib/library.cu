@@ -172,6 +172,35 @@ struct Matrix * MatrixAdd (const struct Matrix *a, const struct Matrix *b) {
     return C;
 }
 
+struct Matrix * MatrixElementwiseMult (const struct Matrix *a, const struct Matrix *b) {
+    if (a->shape[0] != b->shape[0] || a->shape[1] != b->shape[1]) {
+        printf("Mismatched Matrix Sizes");
+    }
+
+    Matrix *C  = CreateZeroMatrix(a->num_dim, a->shape, GPU);
+    dim3 gridDim(CEIL_DIV(C->size, BLOCKSIZE * BLOCKSIZE));
+    dim3 blockDim(BLOCKSIZE * BLOCKSIZE);
+
+    // Alloc Constants to be used by kernel
+    // TODO: Get rid of managed memory, its slow and a scam
+    int * cuda_size;
+    float * mult;
+    cudaMallocManaged(&cuda_size, sizeof(int));
+    cudaMallocManaged(&mult, sizeof(float));
+    *cuda_size = C->size;
+    *mult = 1.0;
+    matrixElementwiseMultKernel<<<gridDim, blockDim>>>(cuda_size, a->elements, b->elements, C->elements, mult, mult);
+
+    cudaDeviceSynchronize();
+    cudaFree(cuda_size);
+    cudaFree(mult);
+    return C;
+}
+
+
+
+
+
 
 void FreeMatrix(struct Matrix *m) {
     cudaFree(m->elements);

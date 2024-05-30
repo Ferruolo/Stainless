@@ -118,3 +118,21 @@ __global__ void matrixAddKernel(const int * size, float * A, float *B, float *C,
         idx += elements_per_iteration;
     }
 }
+
+
+__global__ void matrixElementwiseMultKernel(const int * size, float * A, float *B, float *C, const float *alpha, const float *beta) {
+    int elements_per_iteration = blockDim.x * CELLS_PER_BLOCK;
+    int idx = blockIdx.x * blockDim.x + threadIdx.x;
+
+
+    #pragma unroll
+    for (int i = 0; i < CELLS_PER_GEAM_KERNEL; ++i) {
+        __syncthreads();
+        if (idx < *size) {
+            float a = (*alpha) * A[idx];
+            float b = (*beta) * B[idx];
+            C[idx] = a * b;
+        }
+        idx += elements_per_iteration;
+    }
+}

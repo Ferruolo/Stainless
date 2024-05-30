@@ -20,3 +20,6 @@ __global__ void sgemm_kernel(int M, int N, int K, float alpha, float beta,
 __global__ void matrixAddKernel(const int * size, float * A, float *B,
                                 float *C, const float *alpha, const float *beta);
 
+
+__global__ void matrixElementwiseMultKernel(const int * size, float * A, float *B,
+                                            float *C, const float *alpha, const float *beta);
