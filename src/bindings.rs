@@ -53,5 +53,11 @@ extern "C" {
     pub fn MatMul(a: *const Matrix, b: *const Matrix) -> *mut Matrix;
 }
 extern "C" {
+    pub fn MatrixAdd(a: *const Matrix, b: *const Matrix) -> *mut Matrix;
+}
+extern "C" {
+    pub fn MatrixElementwiseMult(a: *const Matrix, b: *const Matrix) -> *mut Matrix;
+}
+extern "C" {
     pub fn FreeMatrix(m: *mut Matrix);
 }
