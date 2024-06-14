@@ -16,6 +16,7 @@ pub struct RustMatrix {
     mode: RustMatType,
     gpu_matrix: Option<*mut Matrix>,
 }
+
 impl RustMatrix {
     pub fn init() -> Self {
         return Self {
